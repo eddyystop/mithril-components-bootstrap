@@ -1,0 +1,86 @@
+<!doctype html>
+<head>
+  <link href="../../public/vendor/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css">
+</head>
+<body>
+<script src="../../public/vendor/js/mithril.js"></script>
+<script src="../../components/utils/mcUtils.js"></script>
+<script src="../componentsUi/Tabs/Tabs.js"></script>
+<script src="../componentsUi/Dropdown/Dropdown.js"></script>
+<script>
+  var app = {
+    controller: function () {
+      var ctrl = this;
+      this.dropdownCtrl = [];
+      this.activeTab = [];
+
+      for (var i = 0; i < 15; i += 1) {
+        this.dropdownCtrl.push(
+          new mc.Dropdown.controller({ onclickTab: onclickTab.bind(this, i) })
+        );
+      }
+
+      function onclickTab (i, name) {
+        ctrl.activeTab[i] = name;
+        console.log('\n... dropdownCtrl' + i + '>onclickTab name=', name);
+      }
+    },
+
+    view: function (ctrl) {
+      var options0 = {
+          name: 'dropdown0',
+          label: 'Dropdown-0',
+          flavor: 'dropdown',
+          dropdown: [
+            {label: 'Primary actions', type: 'header' },
+            {name: 'action1', label: 'Action'},
+            {name: 'another action', label: 'Another action', isDisabled: true },
+            {type: 'divider' },
+            {label: 'Secondary actions', type: 'header' },
+            {name: 'separated action', label: 'Separated action' },
+            {label: 'Exit bar', redirectTo: '/bar'}
+          ]},
+        options1 = mc.utils.extend({}, options0, {label: 'Dropdown-1', flavor: 'btn'}),
+        options2 = mc.utils.extend({}, options0, {label: 'Dropdown-2', flavor: 'btn', selectors: '.btn-danger.btn-lg'}),
+        options3 = mc.utils.extend({}, options0, {label: 'Dropdown-3', flavor: 'btn-up', selectors: '.btn-sm'}),
+
+        options10 = mc.utils.extend({}, options0, {label: 'Dropdown-10', isSplit: true}),
+        options11 = mc.utils.extend({}, options0, {label: 'Dropdown-11', isSplit: true, flavor: 'btn'}),
+        options12 = mc.utils.extend({}, options0, {label: 'Dropdown-12', isSplit: true, flavor: 'btn', selectors: '.btn-danger.btn-lg'}),
+        options13 = mc.utils.extend({}, options0, {label: 'Dropdown-13', isSplit: true, flavor: 'btn-up', selectors: '.btn-info.btn-sm'});
+
+      return m('.container', [
+        mc.Dropdown.view(ctrl.dropdownCtrl[0], options0),
+        m('p', 'selected tab is ' + ctrl.activeTab[0]),
+        mc.Dropdown.view(ctrl.dropdownCtrl[1], options1),
+        m('p', 'selected tab is ' + ctrl.activeTab[1]),
+        mc.Dropdown.view(ctrl.dropdownCtrl[2], options2),
+        m('p', 'selected tab is ' + ctrl.activeTab[2]),
+        mc.Dropdown.view(ctrl.dropdownCtrl[3], options3),
+        m('p', 'selected tab is ' + ctrl.activeTab[3]),
+
+        mc.Dropdown.view(ctrl.dropdownCtrl[10], options10),
+        m('p', 'selected tab is ' + ctrl.activeTab[10]),
+        mc.Dropdown.view(ctrl.dropdownCtrl[11], options11),
+        m('p', 'selected tab is ' + ctrl.activeTab[11]),
+        mc.Dropdown.view(ctrl.dropdownCtrl[12], options12),
+        m('p', 'selected tab is ' + ctrl.activeTab[12]),
+        mc.Dropdown.view(ctrl.dropdownCtrl[13], options13),
+        m('p', 'selected tab is ' + ctrl.activeTab[13])
+      ]);
+    }
+  };
+
+  var foo = {
+    controller: function () { },
+    view: function () {
+      return m('h1.col-md-offset-1.bg-warning', 'We have redirected to another route');
+    }
+  };
+
+  m.route(document.body, '/', {
+    '/': app,
+    '/:tab': foo
+  });
+</script>
+</body>
