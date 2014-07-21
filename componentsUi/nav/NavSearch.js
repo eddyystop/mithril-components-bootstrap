@@ -4,10 +4,11 @@
 
 mc.NavSearch = {
   // options: <props> searchValue() <events> onsubmit
-  controller: function (options) {
-    this.searchValue = mc.utils.coerceToMprop(options.searchValue || '');
-    this.onsubmit = function () {
-      options.onsubmit(this.searchValue());
+  Controller: function (options) {
+    this._searchValue = m.prop(mc.utils.getValue(options.searchValue, '')); // used with m.withAttr
+    this._onsubmit = function () {
+      if (typeof options.searchValue === 'function') { options.searchValue(this._searchValue()); }
+      if (options.onsubmit) { options.onsubmit(this._searchValue()); }
     }.bind(this);
   },
 
@@ -22,15 +23,14 @@ mc.NavSearch = {
         m('.form-group', [
           options.label ? m('label.sr-only', options.label) : null,
           m('input[type=text].form-control',
-            { value: ctrl.searchValue(),
-              onchange: m.withAttr('value', ctrl.searchValue),
+            { value: ctrl._searchValue(),
+              onchange: m.withAttr('value', ctrl._searchValue),
               placeholder: options.placeholder || 'Search'
             }
           )
         ]),
         m('button[type=button].btn btn-default',
-          {onclick: ctrl.onsubmit.bind(null, ctrl.searchValue())},
-            options.btnLabel || 'Submit'
+          { onclick: ctrl._onsubmit }, options.btnLabel || 'Submit'
         )
       ]
     );

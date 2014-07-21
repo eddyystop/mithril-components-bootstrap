@@ -25,20 +25,26 @@ test.print = function(print) {
 	}
 };
 
-function compareRenders (text, source, target) {
+test.result = function (text, r) {
+  test.total += 1;
+  console.log('..' + text + (r ? '' : ' FAILED'));
+  return r;
+};
+
+test.compareRenders = function (text, source, target) {
   test.total += 1;
   var r = JSON.stringify(normalizeJsx(source)) === JSON.stringify(normalizeJsx(target));
   console.log('..' + text + (r ? '' : ' FAILED'));
 
   if (!r) {
     test.failures.push(text);
-    stringify(text + ' source', normalizeJsx(source));
-    stringify(text + ' target', normalizeJsx(target));
+    test.stringify(text + ' source', normalizeJsx(source));
+    test.stringify(text + ' target', normalizeJsx(target));
   }
   return r;
-}
+};
 
-function stringify (text, obj) {
+test.stringify = function (text, obj) {
   console.log('\n' + text + ' ==================================================\n' +
     stringifyObject(obj, { indent: '  ', singleQuotes: false }));
 }

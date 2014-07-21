@@ -11,56 +11,39 @@
 <body>
 <script src="../../public/vendor/js/mithril.js"></script>
 <script src="../../components/utils/mcUtils.js"></script>
+<script src="../componentsUi/Dropdown/Dropdown.js"></script>
 <script src="../componentsUi/Tabs/Tabs.js"></script>
-<script src="../componentsUi/NavSearch/NavSearch.js"></script>
-<script src="../componentsUi/NavText/NavText.js"></script>
+<script src="../componentsUi/Nav/NavSearch.js"></script>
+<script src="../componentsUi/Nav/NavText.js"></script>
 <script src="../componentsUi/Button/Button.js"></script>
+<script src="../componentsUi/Button/ButtonDropdown.js"></script>
 <script src="../componentsUi/Nav/NavResponsive.js"></script>
 <script>
   var app = {
     controller: function () {
-      this.activeTab = m.prop('finance');
-      this.tabsCtrl = new mc.Tabs.controller({
-        activeTab: this.activeTab,
-        onclickTab: function (tabName) {
-          console.log('app tabs tabName=', tabName);
-        }.bind(this)
-      });
 
-      this.searchValue = m.prop('search this');
-      this.navSearchCtrl = new mc.NavSearch.controller({
-        searchValue: this.searchValue,
-        onsubmit: function (searchValue) {
-          console.log('app NavSearch searchValue=', searchValue)
-        }.bind(this)
-      });
+      this.tabsCtrl = new mc.Tabs.Controller({ activeTab: this.activeTab = m.prop('finance') });
+      this.navSearchCtrl = new mc.NavSearch.Controller({ searchValue: this.searchValue = m.prop('search this') });
+      this.btnCtrl = new mc.ButtonDropdown.Controller({ tabName: this.btnTabName = m.prop('') });
+      this.buttonCtrl = new mc.Button.Controller({ onclick: function () {
+        console.log('\nbutton clicked');
+      } });
 
-      this.buttonCtrl = new mc.Button.controller({
-        onclick: function () {
-          console.log('\nbutton clicked');
-        }
-      });
-
-      this.btnDropdownCtrl = new mc.ButtonDropdown.controller({
-        onclickTab: function (tabName) {
-          console.log('\n.....Button dropdown clicked. tabName=', tabName);
-        }.bind(this)
-      });
-
-      this.navCtrl = new mc.NavResponsive.controller();
+      this.navCtrl = new mc.NavResponsive.Controller();
     },
 
     view: function (ctrl) {
       return [
         mc.NavResponsive.view(ctrl.navCtrl, {
           flavor: 'fixed-top',
-          brandLabel: 'Acom',
-          brandUrl: '/acom',
-          viewContents: function () {
+          brandLabel: 'Foo',
+          brandUrl: '/afoo',
+          viewComponents: function () {
+            //return mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'Bar'})
             return [
               viewTabs(),
-              //viewSearch(),
-              //mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'JohnSz'})
+              viewSearch(),
+              mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'JohnSz'}),
               mc.Button.view(ctrl.buttonCtrl, {
                   flavor: 'nav-right', label: 'Sign in',
                   selectors: '.btn-warning.btn-sm'
@@ -69,8 +52,9 @@
             ]
           }
         }),
-        m('h1', 'line1'),
-        m('h1', 'line2'),
+        m('h3', 'active tab=' + ctrl.activeTab()),
+        m('h3', 'search value=' + ctrl.searchValue()),
+        m('h3', 'tab name=' + ctrl.btnTabName()),
         viewBtn(),
         m('h1', 'line3'),
         m('h1', 'line4'),
@@ -82,16 +66,16 @@
         var tabOptions = {
           flavor: 'nav',
           tabs: [
-            { name: 'finance', label: 'Financials' },
+            { name: 'financials', label: 'Financials' },
             { name: 'foo', label: 'Disabled', isDisabled: true },
-            { name: 'staff', label: 'Personnel' },
+            { name: 'personnel', label: 'Personnel' },
             { name: 'dropdown', label: 'Dropdown', dropdown: [
               {label: 'Primary actions', type: 'header' },
-              {name: 'action1', label: 'Action'},
-              {name: 'action2', label: 'Another action', isDisabled: true },
+              {name: 'action', label: 'Action'},
+              {name: 'another action', label: 'Another action', isDisabled: true },
               {type: 'divider' },
               {label: 'Secondary actions', type: 'header' },
-              {name: 'action9', label: 'Separated action' },
+              {name: 'separated action', label: 'Separated action' },
               {label: 'Exit bar', redirectTo: '/bar'}
             ]},
             { name: 'exit', label: 'Exit /foo', redirectTo:  '/foo' },
@@ -122,16 +106,16 @@
           isSplit: true,
           dropdown: [
             {label: 'Primary actions', type: 'header' },
-            {name: 'action1', label: 'Action'},
-            {name: 'action2', label: 'Another action', isDisabled: true },
+            {name: 'action', label: 'Action'},
+            {name: 'another action', label: 'Another action', isDisabled: true },
             {type: 'divider' },
             {label: 'Secondary actions', type: 'header' },
-            {name: 'action9', label: 'Separated action' },
+            {name: 'separated action', label: 'Separated action' },
             {label: 'Exit bar', redirectTo: '/bar'}
           ]
         };
 
-        return mc.ButtonDropdown.view(ctrl.btnDropdownCtrl, dropdownOptions);
+        return mc.ButtonDropdown.view(ctrl.btnCtrl, dropdownOptions);
       }
     }
   };

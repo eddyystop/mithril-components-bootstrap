@@ -15,13 +15,8 @@ mc.utils.extend = function (to /* arguments */) {
   return to;
 };
 
-// ensure params are m.prop()
-mc.utils.coerceToMprop = function (param, defaultValue) {
-  return typeof param === 'function' ? param : m.prop(param === undefined ? defaultValue : param);
-};
-
 // get value from possible m.prop()
-mc.utils.getMpropValue = function (param, defaultValue) {
+mc.utils.getValue = function (param, defaultValue) {
   var value = typeof param === 'function' ? param() : param;
   return value === undefined ? defaultValue : value;
 };

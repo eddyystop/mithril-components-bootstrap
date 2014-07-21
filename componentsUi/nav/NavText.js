@@ -3,7 +3,7 @@
 // NavText =====================================================================
 
 mc.NavText = {
-  controller: function () {},
+  Controller: function () {},
 
   // options: <props> label, href, linkLabel
   view: function (ctrl, options) {

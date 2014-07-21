@@ -5,7 +5,6 @@
 <body>
 <script src="../../public/vendor/js/mithril.js"></script>
 <script src="../../components/utils/mcUtils.js"></script>
-<script src="../componentsUi/Tabs/Tabs.js"></script>
 <script src="../componentsUi/Dropdown/Dropdown.js"></script>
 <script>
   var app = {
@@ -16,7 +15,7 @@
 
       for (var i = 0; i < 15; i += 1) {
         this.dropdownCtrl.push(
-          new mc.Dropdown.controller({ onclickTab: onclickTab.bind(this, i) })
+          new mc.Dropdown.Controller({ onclickTab: onclickTab.bind(this, i) })
         );
       }
 

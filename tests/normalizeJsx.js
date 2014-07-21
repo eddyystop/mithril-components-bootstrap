@@ -36,6 +36,8 @@ function normalizeJsx (jsx, ifKeepFcns) {
       } else {
         outJsx.children = children([jsx.children]);
       }
+    } else if (Array.isArray(jsx)) {
+      return children(jsx);
     } else {
       outJsx.children = [];
     }
@@ -51,7 +53,7 @@ function normalizeJsx (jsx, ifKeepFcns) {
 
   function attrs (inAttrs) {
     var outAttrs = {};
-    Object.keys(inAttrs).map(function( key) {
+    Object.keys(inAttrs).sort().map(function( key) {
       if (typeof inAttrs[key] !== 'function' || ifKeepFcns) {
 
         switch (key) {

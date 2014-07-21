@@ -4,9 +4,9 @@
 
 mc.Button = {
   // options: <events> onclick
-  controller: function (options) {
+  Controller: function (options) {
     this.onclick = function (el) {
-      if (options.onclick) { options.onclick(el); }
+      if (options.onclick) { options.onclick(); }
     }.bind(this);
   },
 
@@ -39,17 +39,5 @@ mc.Button = {
         );
       }
     }
-  }
-};
-
-mc.ButtonDropdown = {
-  // options: see mc.Dropdown
-  controller: function (options) {
-    this.dropdownCtrl = new mc.Dropdown.controller(options);
-  },
-
-  // options: see mc.Dropdown
-  view: function (ctrl, options) {
-    return mc.Dropdown.view(ctrl.dropdownCtrl, options);
   }
 };

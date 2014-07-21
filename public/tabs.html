@@ -5,62 +5,95 @@
 <body>
 <script src="../../public/vendor/js/mithril.js"></script>
 <script src="../../components/utils/mcUtils.js"></script>
-<script src="../componentsUi/Dropdown/Dropdown
-.js"></script>
+<script src="../componentsUi/Dropdown/Dropdown.js"></script>
 <script src="../componentsUi/Tabs/Tabs.js"></script>
 <script>
   var app = {
     controller: function () {
-      this.activeTab = m.prop('finance');
-      this.tabsCtrl = new mc.Tabs.controller({
-        activeTab: this.activeTab
-      });
+      var ctrl = this;
+      this.tabsCtrls = [];
+      this.activeTabs = ['financials', 'personnel', 'dropdown'];
 
-      this.selectedTab = m.prop(null);
-      this.dropdownCtrl = new mc.Dropdown.controller({
-        selectedTab: this.selectedTab
+      for (var i = 0; i < 15; i += 1) {
+        this.tabsCtrls.push(
+          new mc.Tabs.Controller({ activeTab: this.activeTabs[i], onclickTab: onclickTab.bind(this, i) })
+        );
+      }
+
+      function onclickTab (i, name) {
+        ctrl.activeTabs[i] = name;
+        console.log('tabsCtrl' + i + '>onclickTab name=', name);
+      }
+
+      this.dropdownTab = '';
+      this.dropdownCtrl = new mc.Dropdown.Controller({
+        onclickTab: function (name) {
+          this.dropdownTab = name;
+          console.log('dropdownCtrl>onclickTab name=', name);
+        }.bind(this)
       });
     },
 
     view: function (ctrl) {
-      var tabOptions = {
-        flavor: 'tabs',
-        tabs: [
-          { name: 'finance', label: 'Financials' },
-          { name: 'foo', label: 'Disabled', isDisabled: true },
-          { name: 'staff', label: 'Personnel' },
-          { name: 'dropdown', label: 'Dropdown', dropdown: [
-            {label: 'Primary actions', type: 'header' },
-            {name: 'action1', label: 'Action'},
-            {name: 'action2', label: 'Another action', isDisabled: true },
-            {type: 'divider' },
-            {label: 'Secondary actions', type: 'header' },
-            {name: 'action9', label: 'Separated action' },
-            {label: 'Exit bar', redirectTo: '/bar'}
-          ]},
-          { name: 'exit', label: 'Exit /foo', redirectTo:  '/foo' },
-          { name: 'exit2', label: 'Exit /bar', redirectTo:  '/bar', isDisabled: true }
-        ]
-      };
+      var options0 = {
+          flavor: 'tabs',
+          tabs: [
+            { name: 'financials', label: 'Financials' },
+            { name: 'foo', label: 'Disabled', isDisabled: true },
+            { name: 'personnel', label: 'Personnel' },
+            { name: 'dropdown', label: 'Dropdown', dropdown: [
+              {label: 'Primary actions', type: 'header' },
+              {name: 'action', label: 'Action'},
+              {name: 'another action', label: 'Another action', isDisabled: true },
+              {type: 'divider' },
+              {label: 'Secondary actions', type: 'header' },
+              {name: 'separated action', label: 'Separated action' },
+              {label: 'Exit bar', redirectTo: '/bar'}
+            ]},
+            { name: 'exit', label: 'Exit /foo', redirectTo:  '/foo' },
+            { name: 'exit2', label: 'Exit /bar', redirectTo:  '/bar', isDisabled: true }
+          ]
+        },
+
+        options1 = mc.utils.extend({}, options0, {flavor: 'pills'}),
+        options2 = mc.utils.extend({}, options0, {flavor: 'pills-stacked'});
+
       var dropdownOptions = {
         name: 'dropdown1',
         label: 'Dropdown-1',
         dropdown: [
           {label: 'Primary actions', type: 'header' },
-          {name: 'action1', label: 'Action'},
-          {name: 'action2', label: 'Another action', isDisabled: true },
+          {name: 'action', label: 'Action'},
+          {name: 'another action', label: 'Another action', isDisabled: true },
           {type: 'divider' },
           {label: 'Secondary actions', type: 'header' },
-          {name: 'action9', label: 'Separated action' },
+          {name: 'separated action', label: 'Separated action' },
           {label: 'Exit bar', redirectTo: '/bar'}
         ]
       };
 
       return m('.container', [
-        mc.Tabs.view(ctrl.tabsCtrl, tabOptions),
-        m('p', 'active tab is ' + ctrl.activeTab()),
-        mc.Dropdown.view(ctrl.dropdownCtrl, dropdownOptions),
-        m('p', 'selected tab is ' + ctrl.selectedTab())
+        m('.row', { style: {border: '1px solid black', padding: '5px', margin: '5px'} }, [
+          mc.Tabs.view(ctrl.tabsCtrls[0], options0),
+          m('p', 'active tab is ' + ctrl.activeTabs[0])
+        ]),
+        m('.row', { style: {border: '1px solid black', padding: '5px', margin: '5px'} }, [
+          mc.Tabs.view(ctrl.tabsCtrls[1], options1),
+          m('p', 'active tab is ' + ctrl.activeTabs[1])
+        ]),
+        m('.row', { style: {border: '1px solid black', padding: '5px', margin: '5px'} }, [
+          m('.col-xs-3', [
+            mc.Tabs.view(ctrl.tabsCtrls[2], options2)
+
+          ]),
+          m('.col-xs-9',
+            m('p', 'active tab is ' + ctrl.activeTabs[2])
+          )
+        ]),
+        m('.row', { style: {border: '1px solid black', padding: '5px', margin: '5px'} }, [
+          mc.Dropdown.view(ctrl.dropdownCtrl, dropdownOptions),
+          m('p', 'selected tab is ' + ctrl.dropdownTab)
+        ])
       ]);
     }
   };

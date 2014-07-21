@@ -25,20 +25,26 @@ test.print = function(print) {
 	}
 };
 
-function compareRenders (text, source, target) {
+test.result = function (text, r) {
+  test.total += 1;
+  console.log('..' + text + (r ? '' : ' FAILED'));
+  return r;
+};
+
+test.compareRenders = function (text, source, target) {
   test.total += 1;
   var r = JSON.stringify(normalizeJsx(source)) === JSON.stringify(normalizeJsx(target));
   console.log('..' + text + (r ? '' : ' FAILED'));
 
   if (!r) {
     test.failures.push(text);
-    stringify(text + ' source', normalizeJsx(source));
-    stringify(text + ' target', normalizeJsx(target));
+    test.stringify(text + ' source', normalizeJsx(source));
+    test.stringify(text + ' target', normalizeJsx(target));
   }
   return r;
-}
+};
 
-function stringify (text, obj) {
+test.stringify = function (text, obj) {
   console.log('\n' + text + ' ==================================================\n' +
     stringifyObject(obj, { indent: '  ', singleQuotes: false }));
 }
@@ -80,6 +86,8 @@ function normalizeJsx (jsx, ifKeepFcns) {
       } else {
         outJsx.children = children([jsx.children]);
       }
+    } else if (Array.isArray(jsx)) {
+      return children(jsx);
     } else {
       outJsx.children = [];
     }
@@ -95,7 +103,7 @@ function normalizeJsx (jsx, ifKeepFcns) {
 
   function attrs (inAttrs) {
     var outAttrs = {};
-    Object.keys(inAttrs).map(function( key) {
+    Object.keys(inAttrs).sort().map(function( key) {
       if (typeof inAttrs[key] !== 'function' || ifKeepFcns) {
 
         switch (key) {
@@ -816,349 +824,10 @@ mc.utils.extend = function (to /* arguments */) {
   return to;
 };
 
-// ensure params are m.prop()
-mc.utils.coerceToMprop = function (param, defaultValue) {
-  return typeof param === 'function' ? param : m.prop(param === undefined ? defaultValue : param);
-};
-
 // get value from possible m.prop()
-mc.utils.getMpropValue = function (param, defaultValue) {
+mc.utils.getValue = function (param, defaultValue) {
   var value = typeof param === 'function' ? param() : param;
   return value === undefined ? defaultValue : value;
-};
-
-mc.Dropdown = {
-  // options: <props> isDropdownOpen <event> onclickTab
-  controller: function (options) {
-    //console.log('\n.. in mc.Dropdown.controller. options=', options);
-    options = options || {};
-    this.isDropdownOpen = mc.utils.getMpropValue(options.isDropdownOpen, false);
-    this.dropdownId = 0;
-
-    this.onclickTab = function (name) {
-      //console.log('mc.Dropdown.controller > onclickTab. name=', name);
-      this.isDropdownOpen = false;
-      mc._comm.lastDropdownId = -1;
-      //console.log('set lastDropdownId=', -1)
-      options.onclickTab(name);
-    }.bind(this);
-
-    this.onclickDropdown = function () {
-      //console.log('mc.Dropdown.controller > onclickDropdown');
-      this.isDropdownOpen = !this.isDropdownOpen;
-      mc._comm.lastDropdownId = this.dropdownId = Date.now();
-      //console.log('set lastDropdownId & dropdownId=', this.dropdownId)
-    }.bind(this);
-
-    this.closeDropdown = function () {
-      this.isDropdownOpen = false;
-    }.bind(this);
-  },
-
-  // ctrl: <props> isDropDownOpen, dropdownId <events> onclickTab, onClickDropdown
-  // options: flavor, name, label, isDisabled, isSplit, selectors, dropdown[]
-  // selectors: .btn-default -primary -success -info -warning -danger -link
-  // selectors: .btn-lg -sm -xs
-  // selectors: .btn-block
-  // selectors: .active .disabled
-  view: function (ctrl, options) {
-    //console.log('\n.. in mc.Dropdown.viewsddsdsdsds. ctrl=', ctrl, 'options=', options);
-    options = options || {};
-    var flavors = {
-      dropdown: '.dropdown',
-      btn: '.btn-group',
-      'btn-up': '.btn-group.dropup'
-      },
-      optFlavor = options.flavor,
-      flavor = (flavors[optFlavor] || flavors.dropdown),
-      selectors = options.selectors || '',
-      label = (options.label || options.name || '') + ' ';
-
-    if (ctrl.dropdownId !== mc._comm.lastDropdownId) { ctrl.closeDropdown(); }
-    var isDropdownOpen = ctrl.dropdownId === mc._comm.lastDropdownId ? ctrl.isDropdownOpen : false;
-
-    //console.log('open?=', isDropdownOpen, 'ctrl.isDropdownOpen=', ctrl.isDropdownOpen, 'lastDropdownId=', mc._comm.lastDropdownId, 'dropdownId=', ctrl.dropdownId)
-
-    if (!selectors && (optFlavor === 'btn' || optFlavor === 'btn-up')) {
-      selectors = '.btn-primary';
-    }
-
-    return m('div' + flavor + (isDropdownOpen ? '.open' : '') + (ctrl.isDisabled ? '.disabled' : ''),
-      [
-        options.isSplit ? splitButton() : button(),
-        isDropdownOpen ? mc.Dropdown.viewMenu({ onclickTab: ctrl.onclickTab }, options) : null
-      ]
-    );
-
-    function button () {
-      return m('button[type=button].btn.btn-default.dropdown-toggle' + selectors,
-        {onclick: ctrl.onclickDropdown.bind(ctrl, ctrl.name)},
-        [ m('span', label),
-          m('span.caret')
-        ]
-      );
-    }
-
-    function splitButton () {
-      return [
-        m('button[type=button].btn' + selectors,
-          {onclick: ctrl.onclickDropdown.bind(ctrl, ctrl.name)}, label
-        ),
-        m('button[type=button].btn.dropdown-toggle' + selectors,
-          {onclick: ctrl.onclickDropdown.bind(ctrl, ctrl.name)},
-          [m('span.caret'),
-            m('span.sr-only', 'Toggle dropdown')
-          ]
-        )
-      ];
-    }
-  },
-
-  // ctrl {}: <events> onclickTab
-  // options.dropdown[]: name, label, type, isDisabled, alignRight, redirectTo
-  viewMenu: function (ctrl, options) {
-    //console.log('.. in mc.Dropdown.viewMenu. options=', options);
-    return m('ul.dropdown-menu' + (options.alignRight ? '.dropdown-menu-right' : ''),
-      options.dropdown.map(function (menuItem) {
-
-        //console.log(menuItem.type);
-        switch (menuItem.type) {
-          case 'divider':
-            return m('li.divider', {style:{margin: '6px 0px'}}, ''); // .divider=9px is not visible
-          case 'header':
-            return m('li.dropdown-header', {tabindex: '-1'}, menuItem.label || menuItem.name);
-          default:
-            var tabsTabCtrl = mc.utils.extend({}, menuItem, {
-              isActive: false,
-              onclickTab: ctrl.onclickTab
-            });
-            return mc.Dropdown.viewTab(tabsTabCtrl);
-        }
-      })
-    );
-  },
-
-  // ctrl: <props> name, label, isActive, isDisabled, redirectTo <events> onclickTab //todo move to options
-  // also called by mc.Tabs
-  viewTab: function (ctrl) {
-    //console.log('.. in mc.Dropdown.viewTab. ctrl=', ctrl);
-    var href = '',
-      attr = {};
-
-    if (!ctrl.isDisabled) {
-      if (ctrl.redirectTo) {
-        href = '[href="' + ctrl.redirectTo + '"]';
-        attr = {config : m.route};
-      } else {
-        attr = {onclick : ctrl.onclickTab.bind(this, ctrl.name)};
-      }
-    }
-
-    return m('li' + (ctrl.isActive ? '.active' : '') + (ctrl.isDisabled ? '.disabled' : ''),
-      m('a' + href, attr, ctrl.label || ctrl.name || '')
-    );
-  }
-};
-mc.NavResponsive = {
-  controller: function (options) {
-    console.log('\n.. in mc.NavResponsive.controller. options=', options);
-    options = options || {};
-    //this.activeTab = mc.utils.coerceToMprop(options.activeTab, '');
-    this.isCollapsedOpen = false;
-
-    this.onclickNavOpen = function () {
-      this.isCollapsedOpen = !this.isCollapsedOpen;
-    }.bind(this);
-
-    this.activeTab = m.prop('finance');
-    this.tabsCtrl = new mc.Tabs.controller({
-      activeTab: this.activeTab
-    });
-  },
-
-  // options: <props> brandLabel, brandUrl, alignRight
-  view: function (ctrl, options) {
-    var flavors = {
-      default: '.navbar.navbar-default',
-      'fixed-top': '.navbar.navbar-default.navbar-fixed-top', // needs style: body { padding-top: 70px }
-      'fixed-bottom': '.navbar.navbar-default.navbar-fixed-bottom', // needs style: body { padding-bottom: 70px }
-      'static-top': '.navbar.navbar-default.navbar-static-top',
-      inverse: '.navbar.navbar-default.navbar-inverse',
-      'fixed-top-inverse': '.navbar.navbar-default.navbar-fixed-top.navbar-inverse', // needs style: body { padding-top: 70px }
-      'fixed-bottom-inverse': '.navbar.navbar-default.navbar-fixed-bottom.navbar-inverse', // needs style: body { padding-bottom: 70px }
-      'static-top-inverse': '.navbar.navbar-default.navbar-static-top.navbar-inverse'
-      };
-
-    return m('nav' + (flavors[options.flavor] || flavors.default), [
-      m('.container-fluid', [
-
-        // Brand name & collapsed nav toggle
-        m('.navbar-header', [
-          m('button[type=button].navbar-toggle', {onclick: ctrl.onclickNavOpen}, [
-            m('span.sr-only', 'Toggle navigation'),
-            m('span.icon-bar', ''),
-            m('span.icon-bar', ''),
-            m('span.icon-bar', '')
-          ]),
-          m('a.navbar-brand', {href: options.brandUrl}, options.brandLabel)
-        ]),
-
-        // navbar contents
-        m('.collapse.navbar-collapse' + (ctrl.isCollapsedOpen ? '.in' : ''),
-          options.viewContents()
-        )
-      ])
-    ]);
-  }
-};
-
-/*global m:false */
-
-// NavSearch ===================================================================
-
-mc.NavSearch = {
-  // options: <props> searchValue() <events> onsubmit
-  controller: function (options) {
-    this.searchValue = mc.utils.coerceToMprop(options.searchValue || '');
-    this.onsubmit = function () {
-      options.onsubmit(this.searchValue());
-    }.bind(this);
-  },
-
-  // options: <props> label, placeholder, btnLabel, flavor
-  view: function (ctrl, options) {
-    var flavors = {
-      nav: '.navbar-form',
-      'nav-right': '.navbar-form.navbar-right'
-    };
-
-    return m('form' + (flavors[options.flavor] || flavors.nav), [
-        m('.form-group', [
-          options.label ? m('label.sr-only', options.label) : null,
-          m('input[type=text].form-control',
-            { value: ctrl.searchValue(),
-              onchange: m.withAttr('value', ctrl.searchValue),
-              placeholder: options.placeholder || 'Search'
-            }
-          )
-        ]),
-        m('button[type=button].btn btn-default',
-          {onclick: ctrl.onsubmit.bind(null, ctrl.searchValue())},
-            options.btnLabel || 'Submit'
-        )
-      ]
-    );
-  }
-};
-/*global m:false */
-
-// NavText =====================================================================
-
-mc.NavText = {
-  controller: function () {},
-
-  // options: <props> label, href, linkLabel
-  view: function (ctrl, options) {
-    var flavors = {
-      nav: '.navbar-text',
-      'nav-right': '.navbar-text.navbar-right'
-    };
-
-    return m('p' + (flavors[options.flavor] || flavors.nav), [
-        m('span', options.label || ''),
-        options.href ? m('a.navbar-link', ' ' + (options.linkLabel || '')) : null
-      ]
-    );
-  }
-};
-var mc = mc || {};
-
-// <dep> mc.Dropdown
-mc.Tabs = {
-  // options: <props> activeTab(), isDropdownOpen() <event> onclickTab
-  controller: function (options) {
-    console.log('\n.. in mc.Tabs.controller. options=', options);
-    options = options || {};
-    this.activeTab = mc.utils.getMpropValue(options.activeTab, '');
-    this.isDropdownOpen = mc.utils.getMpropValue(options.isDropdownOpen, false);
-    this.dropdownId = 0;
-
-    this.onclickTab = function (name) {
-      console.log('mc.Tabs.controller > onclickTab. name=', name);
-      this.isDropdownOpen = false;
-      mc._comm.lastDropdownId = -1;
-      this.activeTab = name;
-      options.onclickTab(this.activeTab);
-    }.bind(this);
-
-    this.onclickDropdown = function (name) {
-      console.log('mc.Tabs.controller > onclickDropdown. name=', name, 'activeTab=', this.activeTab);
-      this.isDropdownOpen = name === this.activeTab ? !this.isDropdownOpen : true;
-      this.activeTab = name;
-      mc._comm.lastDropdownId = this.dropdownId = Date.now();
-    }.bind(this);
-  },
-
-  // options: <props> activeTab, isDropdownOpen <events> onclickTab, onclickDropDown
-  // options.tab[]: <props> name, label, isActive, isDisabled, redirectTo, dropdown[], alignMenuRight
-  view: function (ctrl, options) {
-    console.log('\n.. in mc.Tabs.view. options=', options);
-    var flavors = {
-      tabs: '.nav.nav-tabs',
-      pills: '.nav.nav-pills',
-      'pills-stacked': '.nav.nav-pills.nav-stacked',
-      nav: '.nav.navbar-nav',
-      'nav-right': '.nav.navbar-nav.navbar-right'
-    };
-
-    return [
-      m('ul' + (flavors[options.flavor] || flavors.tabs),
-        (options.tabs || []).map(function (tab) {
-          var tabOptions = mc.utils.extend({}, tab, ctrl, { isActive: ctrl.activeTab === tab.name });
-          return !tab.dropdown ? mc.Tabs.viewTab(ctrl, tabOptions) : mc.TabsDropdown.view(ctrl, tabOptions);
-        })
-      )
-    ];
-  },
-
-  // ctrl: <events> onclickTab
-  // options: <props> name, label, isActive, isDisabled, redirectTo
-  viewTab: function (ctrl, options) {
-    console.log('.. in mc.TabsTab.view. options=', options);
-    var href = '',
-      attr = {};
-
-    if (!options.isDisabled) {
-      if (options.redirectTo) {
-        href = '[href="' + options.redirectTo + '"]';
-        attr = {config : m.route};
-      } else {
-        attr = {onclick : options.onclickTab.bind(this, options.name)};
-      }
-    }
-
-    return m('li' + (options.isActive ? '.active' : '') + (options.isDisabled ? '.disabled' : ''),
-      m('a' + href, attr, options.label || options.name || '')
-    );
-  }
-};
-
-
-mc.TabsDropdown = { //todo merge with Tabs?
-  // ctrl: <props> isDropdownOpen, dropdownId <events> onclickTab, onclickDropdown
-  // options: <props> name, label, isActive, isDisabled, redirectTo, dropdown[]
-  view: function (ctrl, options) {
-    console.log('.. in mc.TabsDropdown. options=', options);
-    return m('li.dropdown' + (ctrl.isDropdownOpen ? '.open' : '') + (options.isActive ? '.active' : '') + (options.isDisabled ? '.disabled' : ''), [
-      m('a.dropdown-toggle', {onclick: ctrl.onclickDropdown.bind(self, options.name)}, [
-        m('span', (options.label || options.name || '') + ' '),
-        m('span.caret')
-      ]),
-      ctrl.isDropdownOpen ?
-        mc.Dropdown.viewMenu({ onclickTab: ctrl.onclickTab }, { dropdown: options.dropdown }) :
-        null
-    ]);
-  }
 };
 /*global m:false */
 
@@ -1166,9 +835,9 @@ mc.TabsDropdown = { //todo merge with Tabs?
 
 mc.Button = {
   // options: <events> onclick
-  controller: function (options) {
+  Controller: function (options) {
     this.onclick = function (el) {
-      if (options.onclick) { options.onclick(el); }
+      if (options.onclick) { options.onclick(); }
     }.bind(this);
   },
 
@@ -1203,20 +872,419 @@ mc.Button = {
     }
   }
 };
-
+/*global m:false */
+// ButtonDropdown ==============================================================
+// <dep> mc.Dropdown
 mc.ButtonDropdown = {
   // options: see mc.Dropdown
-  controller: function (options) {
-    this.dropdownCtrl = new mc.Dropdown.controller(options);
+  Controller: function (options) {
+    this._dropdownCtrl = new mc.Dropdown.Controller(options);
   },
 
   // options: see mc.Dropdown
   view: function (ctrl, options) {
-    return mc.Dropdown.view(ctrl.dropdownCtrl, options);
+    return mc.Dropdown.view(ctrl._dropdownCtrl, options);
+  }
+};
+/*global m:false */
+// Dropdown ====================================================================
+mc.Dropdown = {
+  // options: <props> tabName() <event> onclickTab
+  Controller: function (options) {
+    options = options || {};
+    this._isDropdownOpen = false;
+    this._dropdownId = 0;
+
+    this._onclickTab = function (name) {
+      this._isDropdownOpen = false;
+      mc._comm.lastDropdownId = -1; // will force closed any open dropdowns
+      if (typeof options.tabName === 'function') { options.tabName(name); }
+      if (options.onclickTab) { options.onclickTab(name); }
+    }.bind(this);
+
+    this._onclickDropdown = function () {
+      this._isDropdownOpen = !this._isDropdownOpen;
+      mc._comm.lastDropdownId = this._dropdownId = Date.now();
+    }.bind(this);
+
+    this.closeDropdown = function () {
+      this._isDropdownOpen = false;
+    }.bind(this);
+  },
+
+  // ctrl: <props> _isDropdownOpen, _dropdownId <events> _onclickTab, onClickDropdown
+  // options: flavor, label, isDisabled, isActive, isSplit, selectors, dropdown[]
+  // selectors: .btn-default -primary -success -info -warning -danger -link
+  // selectors: .btn-lg -sm -xs
+  // selectors: .btn-block
+  // selectors: .active .disabled
+  view: function (ctrl, options) {
+    options = options || {};
+    var flavors = {
+        _tabs: '.dropdown',
+        dropdown: '.dropdown',
+        btn: '.btn-group',
+        'btn-up': '.btn-group.dropup'
+      },
+      optFlavor = options.flavor,
+      flavor = (flavors[optFlavor] || flavors.dropdown),
+      selectors = options.selectors || '',
+      label = (options.label || options.name || '') + ' ';
+
+    if (ctrl._dropdownId !== mc._comm.lastDropdownId) { ctrl.closeDropdown(); }
+    if (!selectors && (optFlavor === 'btn' || optFlavor === 'btn-up')) { selectors = '.btn-primary'; }
+
+    return optFlavor === '_tabs' ? tabs() : (options.isSplit ? splitButton() : button());
+
+    function tabs () {
+      return m('li'  + flavor + (ctrl._isDropdownOpen ? '.open' : '') + (options.isDisabled ? '.disabled' : '') + (options.isActive ? '.active' : ''), [
+        m('a.dropdown-toggle' + selectors,
+          { onclick: ctrl._onclickDropdown }, [
+            m('span', label),
+            m('span.caret')
+          ]),
+        ctrl._isDropdownOpen ? mc.Dropdown.viewMenu({ _onclickTab: ctrl._onclickTab }, { dropdown: options.dropdown }) : null
+      ]);
+    }
+
+    function button () {
+      return m('div' + flavor + (ctrl._isDropdownOpen ? '.open' : '') + (options.isDisabled ? '.disabled' : ''), [
+        m('button[type=button].btn.btn-default.dropdown-toggle' + selectors,
+          { onclick: ctrl._onclickDropdown }, [
+            m('span', label),
+            m('span.caret')
+          ]),
+        ctrl._isDropdownOpen ? mc.Dropdown.viewMenu({ _onclickTab: ctrl._onclickTab }, options) : null
+      ]);
+    }
+
+    function splitButton () {
+      return m('div' + flavor + (ctrl._isDropdownOpen ? '.open' : '') + (options.isDisabled ? '.disabled' : ''), [
+        m('button[type=button].btn' + selectors,
+          { onclick: ctrl._onclickDropdown }, label
+        ),
+        m('button[type=button].btn.dropdown-toggle' + selectors,
+          { onclick: ctrl._onclickDropdown }, [
+            m('span.caret'),
+            m('span.sr-only', 'Toggle dropdown')
+          ]),
+        ctrl._isDropdownOpen ? mc.Dropdown.viewMenu({ _onclickTab: ctrl._onclickTab }, options) : null
+      ]);
+    }
+  },
+
+  // ctrl {}: <events> _onclickTab
+  // options.dropdown[]: label, type, isDisabled, alignRight, redirectTo
+  viewMenu: function (ctrl, options) {
+    return m('ul.dropdown-menu' + (options.alignRight ? '.dropdown-menu-right' : ''),
+      options.dropdown.map(function (menuItem) {
+
+        switch (menuItem.type) {
+          case 'divider':
+            return m('li.divider', {style:{margin: '6px 0px'}}, ''); // .divider's 9px is not visible; px in 0px req'd for tests
+          case 'header':
+            return m('li.dropdown-header', {tabindex: '-1'}, menuItem.label || menuItem.name);
+          default:
+            return mc.Dropdown.viewTab(
+              mc.utils.extend({}, menuItem, { isActive: false, _onclickTab: ctrl._onclickTab })
+            );
+        }
+      })
+    );
+  },
+
+  // ctrl: <props> label, isActive, isDisabled, redirectTo <events> _onclickTab //todo move to options
+  // also called by mc.Tabs
+  viewTab: function (ctrl) {
+    var href = '',
+      attr = {};
+
+    if (!ctrl.isDisabled) {
+      if (ctrl.redirectTo) {
+        href = '[href="' + ctrl.redirectTo + '"]';
+        attr = {config : m.route};
+      } else {
+        attr = {onclick : ctrl._onclickTab.bind(this, ctrl.name)};
+      }
+    }
+
+    return m('li' + (ctrl.isActive ? '.active' : '') + (ctrl.isDisabled ? '.disabled' : ''),
+      m('a' + href, attr, ctrl.label || ctrl.name || '')
+    );
+  }
+};
+/*global m:false */
+// NavResponsive ===============================================================
+mc.NavResponsive = {
+  Controller: function () {
+    this._isCollapsedOpen = false;
+    this._onclickNavOpen = function () {
+      this._isCollapsedOpen = !this._isCollapsedOpen;
+    }.bind(this);
+  },
+
+  // options: <props> brandLabel, brandUrl, flavor, viewComponents:fcn
+  view: function (ctrl, options) {
+    var flavors = {
+      'default': '.navbar.navbar-default',
+      'fixed-top': '.navbar.navbar-default.navbar-fixed-top', // needs style: body { padding-top: 70px }
+      'fixed-bottom': '.navbar.navbar-default.navbar-fixed-bottom', // needs style: body { padding-bottom: 70px }
+      'static-top': '.navbar.navbar-default.navbar-static-top',
+      'inverse': '.navbar.navbar-default.navbar-inverse',
+      'fixed-top-inverse': '.navbar.navbar-default.navbar-fixed-top.navbar-inverse', // needs style: body { padding-top: 70px }
+      'fixed-bottom-inverse': '.navbar.navbar-default.navbar-fixed-bottom.navbar-inverse', // needs style: body { padding-bottom: 70px }
+      'static-top-inverse': '.navbar.navbar-default.navbar-static-top.navbar-inverse'
+      };
+
+    return m('nav' + (flavors[options.flavor] || flavors.default), [
+      m('.container-fluid', [
+
+        // Brand name & collapsed nav toggle
+        m('.navbar-header', [
+          m('button[type=button].navbar-toggle', {onclick: ctrl._onclickNavOpen}, [
+            m('span.sr-only', 'Toggle navigation'),
+            m('span.icon-bar', ''),
+            m('span.icon-bar', ''),
+            m('span.icon-bar', '')
+          ]),
+          m('a.navbar-brand', {href: options.brandUrl}, options.brandLabel)
+        ]),
+
+        // navbar contents
+        m('.collapse.navbar-collapse' + (ctrl._isCollapsedOpen ? '.in' : ''),
+          options.viewComponents()
+        )
+      ])
+    ]);
+  }
+};
+
+/*global m:false */
+
+// NavSearch ===================================================================
+
+mc.NavSearch = {
+  // options: <props> searchValue() <events> onsubmit
+  Controller: function (options) {
+    this._searchValue = m.prop(mc.utils.getValue(options.searchValue, '')); // used with m.withAttr
+    this._onsubmit = function () {
+      if (typeof options.searchValue === 'function') { options.searchValue(this._searchValue()); }
+      if (options.onsubmit) { options.onsubmit(this._searchValue()); }
+    }.bind(this);
+  },
+
+  // options: <props> label, placeholder, btnLabel, flavor
+  view: function (ctrl, options) {
+    var flavors = {
+      nav: '.navbar-form',
+      'nav-right': '.navbar-form.navbar-right'
+    };
+
+    return m('form' + (flavors[options.flavor] || flavors.nav), [
+        m('.form-group', [
+          options.label ? m('label.sr-only', options.label) : null,
+          m('input[type=text].form-control',
+            { value: ctrl._searchValue(),
+              onchange: m.withAttr('value', ctrl._searchValue),
+              placeholder: options.placeholder || 'Search'
+            }
+          )
+        ]),
+        m('button[type=button].btn btn-default',
+          { onclick: ctrl._onsubmit }, options.btnLabel || 'Submit'
+        )
+      ]
+    );
+  }
+};
+/*global m:false */
+
+// NavText =====================================================================
+
+mc.NavText = {
+  Controller: function () {},
+
+  // options: <props> label, href, linkLabel
+  view: function (ctrl, options) {
+    var flavors = {
+      nav: '.navbar-text',
+      'nav-right': '.navbar-text.navbar-right'
+    };
+
+    return m('p' + (flavors[options.flavor] || flavors.nav), [
+        m('span', options.label || ''),
+        options.href ? m('a.navbar-link', ' ' + (options.linkLabel || '')) : null
+      ]
+    );
+  }
+};
+/*global m:false */
+// Tabs ========================================================================
+// <dep> mc.Dropdown
+mc.Tabs = {
+  // options: <props> activeTab() <event> onclickTab
+  Controller: function (options) {
+    //console.log('\n.. in mc.Tabs.Controller. options=', options);
+    options = options || {};
+    this._activeTab = mc.utils.getValue(options.activeTab, '');
+
+    this._onclickTab = function (name) {
+      //console.log('mc.Tabs.Controller > _onclickTab. name=', name);
+      mc._comm.lastDropdownId = -1; // will force closed any open dropdowns
+      this._activeTab = name;
+      if (typeof options.activeTab === 'function') { options.activeTab(name); }
+      if (options.onclickTab) { options.onclickTab(name); }
+    }.bind(this);
+
+    this._dropdownCtrls = [];
+    this._getDropdownCtrl = function (i) {
+      if (!this._dropdownCtrls[i]) {
+        this._dropdownCtrls[i] = new mc.Dropdown.Controller({ onclickTab: this._onclickTab });
+      }
+      return this._dropdownCtrls[i];
+    }.bind(this);
+  },
+
+  // ctrl: <props> _activeTab <events> _onclickTab
+  // options.tab[]: <props> name, label, isActive, isDisabled, redirectTo, dropdown[], alignMenuRight
+  // The option.tab[] may change dramatically between calls for a Controller.
+  // However correct dropdown open/close display assumes the dropdowns appear in the same relative order.
+  view: function (ctrl, options) {
+    //console.log('\n.. in mc.Tabs.view. options=', options);
+    var flavors = {
+        tabs: '.nav.nav-tabs',
+        pills: '.nav.nav-pills',
+        'pills-stacked': '.nav.nav-pills.nav-stacked',
+        nav: '.nav.navbar-nav',
+        'nav-right': '.nav.navbar-nav.navbar-right',
+        'sidebar': '.nav.sidenav'
+      },
+      dropdownCounter = -1;
+
+    return m('ul' + (flavors[options.flavor] || flavors.tabs),
+      (options.tabs || []).map(function (tab) {
+
+        var tabOptions = mc.utils.extend({}, tab, { flavor: '_tabs', isActive: ctrl._activeTab === tab.name });
+        if (!tab.dropdown) { return mc.Tabs.viewTab(ctrl, tabOptions); }
+
+        dropdownCounter += 1;
+        return mc.Dropdown.view(ctrl._getDropdownCtrl(dropdownCounter), tabOptions);
+      })
+    );
+  },
+
+  // ctrl: <events> _onclickTab
+  // options: <props> name, label, isActive, isDisabled, redirectTo
+  viewTab: function (ctrl, options) {
+    //console.log('.. in mc.TabsTab.view. options=', options);
+    var href = '',
+      attr = {};
+
+    if (!options.isDisabled) {
+      if (options.redirectTo) {
+        href = '[href="' + options.redirectTo + '"]';
+        attr = {config : m.route};
+      } else {
+        attr = {onclick : ctrl._onclickTab.bind(this, options.name)};
+      }
+    }
+
+    return m('li' + (options.isActive ? '.active' : '') + (options.isDisabled ? '.disabled' : ''),
+      m('a' + href, attr, options.label || options.name || '')
+    );
   }
 };
 /** @jsx m */
 var mcTest = mcTest || {};
+
+// Dropdown buttons are dropdown controls with special styling.
+// These tests therefore just check that styling.
+
+mcTest.button0 = {
+    name: 'button0',
+    label: 'Button-0',
+    flavor: 'btn',
+    dropdown: [
+      {label: 'Primary actions', type: 'header' },
+      {name: 'action1', label: 'Action'},
+      {name: 'another action', label: 'Another action', isDisabled: true },
+      {type: 'divider' },
+      {label: 'Secondary actions', type: 'header' },
+      {name: 'separated action', label: 'Separated action' },
+      {label: 'Exit bar', redirectTo: '/bar'}
+    ]
+};
+
+mcTest.button1 = mc.utils.extend({}, mcTest.button0, {name: 'button1', label: 'Button-1', flavor: 'btn-up', selectors: '.btn-danger.btn-lg'});
+mcTest.button2 = mc.utils.extend({}, mcTest.button0, {name: 'button2', label: 'Button-2', flavor: 'btn',    isSplit: true });
+mcTest.button3 = mc.utils.extend({}, mcTest.button0, {name: 'button3', label: 'Button-3', flavor: 'btn-up', isSplit: true });
+
+mcTest.target0Closed =
+  m("div", {class:"btn-group"}, [
+    m("button", {type:"button", class:"btn btn-default dropdown-toggle btn-primary"}, [
+      m("span", ["Button-0 " ]),
+      m("span", {class:"caret"})
+    ])
+  ])
+
+mcTest.target1Closed =
+  m("div", {class:"btn-group dropup"}, [
+    m("button", {type:"button", class:"btn btn-default dropdown-toggle btn-danger btn-lg"}, [
+      m("span", ["Button-1 " ]),
+      m("span", {class:"caret"})
+    ])
+  ])
+
+mcTest.target2Closed =
+  m("div", {class:"btn-group"}, [
+    m("button", {type:"button", class:"btn btn-primary"}, ["Button-2 " ]),
+    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
+      m("span", {class:"caret"}),
+      m("span", {class:"sr-only"}, ["Toggle dropdown"])
+    ])
+  ])
+
+mcTest.target3Closed =
+  m("div", {class:"btn-group dropup"}, [
+    m("button", {type:"button", class:"btn btn-primary"}, ["Button-3 " ]),
+    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
+      m("span", {class:"caret"}),
+      m("span", {class:"sr-only"}, ["Toggle dropdown"])
+    ])
+  ])
+
+
+test('buttonDropdown 01', function () {
+  // test dropdown opens and closes
+  var result = true,
+    source1;
+
+  var buttonCtrl = new mc.Dropdown.Controller({ onclickTab: function () {} });
+
+  // dropdown, not split
+  source1 = mc.Dropdown.view(buttonCtrl, mcTest.button0);
+  result = result && test.compareRenders('buttonDropdown 01, test 01', source1, mcTest.target0Closed);
+
+  // dropup, not split
+  source1 = mc.Dropdown.view(buttonCtrl, mcTest.button1);
+  result = result && test.compareRenders('buttonDropdown 01, test 02', source1, mcTest.target1Closed);
+
+  // dropdown, split
+  source1 = mc.Dropdown.view(buttonCtrl, mcTest.button2);
+  result = result && test.compareRenders('buttonDropdown 01, test 03', source1, mcTest.target2Closed);
+
+  // dropup, split
+  source1 = mc.Dropdown.view(buttonCtrl, mcTest.button3);
+  result = result && test.compareRenders('buttonDropdown 01, test 04', source1, mcTest.target3Closed);
+
+  return result;
+});
+
+/** @jsx m */
+var mcTest = mcTest || {};
+
+// ButtonDropdown components always have a Dropdown sub-component.
+// We test various ButtonDropdown features here.
 
 mcTest.dropdown0 = {
     name: 'dropdown0',
@@ -1233,7 +1301,7 @@ mcTest.dropdown0 = {
     ]
 };
 
-mcTest.targetClosed =
+mcTest.target0Closed =
   m("div", {class:"dropdown"}, [
     m("button", {type:"button", class:"btn btn-default dropdown-toggle"}, [
       m("span", ["Dropdown-0 " ]),
@@ -1241,7 +1309,7 @@ mcTest.targetClosed =
     ])
   ])
 
-mcTest.targetOpen =
+mcTest.target0Open =
   m("div", {class:"dropdown open"}, [
     m("button", {type:"button", class:"btn btn-default dropdown-toggle"}, [
       m("span", ["Dropdown-0 " ]),
@@ -1258,26 +1326,70 @@ mcTest.targetOpen =
     ])
   ])
 
+mcTest.dropdown1 = {
+  name: 'dropdown1',
+  label: 'Dropdown-1',
+  flavor: 'btn',
+  isSplit: true,
+  selectors: '.btn-primary',
+  dropdown: [
+    {label: 'Primary actions', type: 'header' },
+    {name: 'action1', label: 'Action'},
+    {name: 'another action', label: 'Another action', isDisabled: true },
+    {type: 'divider' },
+    {label: 'Secondary actions', type: 'header' },
+    {name: 'separated action', label: 'Separated action' },
+    {label: 'Exit bar', redirectTo: '/bar'}
+  ]
+};
+
+mcTest.target1Closed =
+  m("div", {class:"btn-group"}, [
+    m("button", {type:"button", class:"btn btn-primary"}, ["Dropdown-1 " ]),
+    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
+      m("span", {class:"caret"}),
+      m("span", {class:"sr-only"}, ["Toggle dropdown"])
+    ])
+  ])
+
+mcTest.target1Open =
+  m("div", {class:"btn-group open"}, [
+    m("button", {type:"button", class:"btn btn-primary"}, ["Dropdown-1 " ]),
+    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
+      m("span", {class:"caret"}),
+      m("span", {class:"sr-only"}, ["Toggle dropdown"])
+    ]),
+    m("ul", {class:"dropdown-menu"}, [
+      m("li", {class:"dropdown-header", tabindex:"-1"}, ["Primary actions"]),
+      m("li", [m("a", ["Action"])]),
+      m("li", {class:"disabled"}, [m("a", ["Another action"])]),
+      m("li", {class:"divider", style:"margin: 6px 0px;"}),
+      m("li", {class:"dropdown-header", tabindex:"-1"}, ["Secondary actions"]),
+      m("li", [m("a", ["Separated action"])]),
+      m("li", [m("a", {href:"/public/dropdown.html?/bar"}, ["Exit bar"])])
+    ])
+  ])
+
 test('dropdown 01', function () {
   // test dropdown opens and closes
   var result = true,
-    source, target;
+    source1;
 
-  var dropdownCtrl = new mc.Dropdown.controller({ onclickTab: function () {} });
+  var dropdownCtrl = new mc.Dropdown.Controller({ onclickTab: function () {} });
 
   // render dropdown
-  source = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 01, test 01', source, mcTest.targetClosed);
+  source1 = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
+  result = result && test.compareRenders('dropdown 01, test 01', source1, mcTest.target0Closed);
 
   // open it
-  dropdownCtrl.onclickDropdown();
-  source = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 01, test 02', source, mcTest.targetOpen);
+  dropdownCtrl._onclickDropdown();
+  source1 = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
+  result = result && test.compareRenders('dropdown 01, test 02', source1, mcTest.target0Open);
 
   // close it
-  dropdownCtrl.onclickDropdown();
-  source = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 01, test 03', source, mcTest.targetClosed);
+  dropdownCtrl._onclickDropdown();
+  source1 = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
+  result = result && test.compareRenders('dropdown 01, test 03', source1, mcTest.target0Closed);
 
   return result;
 });
@@ -1287,49 +1399,565 @@ test('dropdown 02', function () {
   var result = true,
     source1, source2;
 
-  var dropdownCtrl1 = new mc.Dropdown.controller({ onclickTab: function () {} });
-  var dropdownCtrl2 = new mc.Dropdown.controller({ onclickTab: function () {} });
+  var dropdownCtrl1 = new mc.Dropdown.Controller({ onclickTab: function () {} });
+  var dropdownCtrl2 = new mc.Dropdown.Controller({ onclickTab: function () {} });
 
   // render closed dropdowns
   source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
   source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 02, test 01a', source1, mcTest.targetClosed);
-  result = result && compareRenders('dropdown 02, test 01b', source2, mcTest.targetClosed);
+  result = result && test.compareRenders('dropdown 02, test 01a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('dropdown 02, test 01b', source2, mcTest.target0Closed);
 
   // open #1
-  dropdownCtrl1.onclickDropdown();
+  dropdownCtrl1._onclickDropdown();
   source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
   source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 02, test 02a', source1, mcTest.targetOpen);
-  result = result && compareRenders('dropdown 02, test 02b', source2, mcTest.targetClosed);
+  result = result && test.compareRenders('dropdown 02, test 02a', source1, mcTest.target0Open);
+  result = result && test.compareRenders('dropdown 02, test 02b', source2, mcTest.target0Closed);
 
   // open #2
-  dropdownCtrl2.onclickDropdown();
+  dropdownCtrl2._onclickDropdown();
   source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
   source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 02, test 03a', source1, mcTest.targetClosed);
-  result = result && compareRenders('dropdown 02, test 03b', source2, mcTest.targetOpen);
+  result = result && test.compareRenders('dropdown 02, test 03a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('dropdown 02, test 03b', source2, mcTest.target0Open);
 
   // open #1 again
-  dropdownCtrl1.onclickDropdown();
+  dropdownCtrl1._onclickDropdown();
   source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
   source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 02, test 04a', source1, mcTest.targetOpen);
-  result = result && compareRenders('dropdown 02, test 04b', source2, mcTest.targetClosed);
+  result = result && test.compareRenders('dropdown 02, test 04a', source1, mcTest.target0Open);
+  result = result && test.compareRenders('dropdown 02, test 04b', source2, mcTest.target0Closed);
 
   // open #2 again
-  dropdownCtrl2.onclickDropdown();
+  dropdownCtrl2._onclickDropdown();
   source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
   source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 02, test 05a', source1, mcTest.targetClosed);
-  result = result && compareRenders('dropdown 02, test 05b', source2, mcTest.targetOpen);
+  result = result && test.compareRenders('dropdown 02, test 05a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('dropdown 02, test 05b', source2, mcTest.target0Open);
 
   // close #2
-  dropdownCtrl2.onclickDropdown();
+  dropdownCtrl2._onclickDropdown();
   source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
   source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && compareRenders('dropdown 02, test 06a', source1, mcTest.targetClosed);
-  result = result && compareRenders('dropdown 02, test 06b', source2, mcTest.targetClosed);
+  result = result && test.compareRenders('dropdown 02, test 06a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('dropdown 02, test 06b', source2, mcTest.target0Closed);
+
+  return result;
+});
+
+test('dropdown 03', function () {
+  // test split buttons
+  var result = true,
+    source1;
+
+  var dropdownCtrl1 = new mc.Dropdown.Controller({ onclickTab: function () {} });
+
+  // render closed dropdown
+  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown1);
+  result = result && test.compareRenders('dropdown 03, test 01', source1, mcTest.target1Closed);
+
+  // open #1
+  dropdownCtrl1._onclickDropdown();
+  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown1);
+  result = result && test.compareRenders('dropdown 03, test 02', source1, mcTest.target1Open);
+
+  // close #1
+  dropdownCtrl1._onclickDropdown();
+  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown1);
+  result = result && test.compareRenders('dropdown 03, test 03', source1, mcTest.target1Closed);
+
+  return result;
+});
+
+test('dropdown 04', function () {
+  // test item selection
+  var result = true,
+    tabName1,
+    tabName2 = m.prop('');
+
+  var dropdownCtrl1 = new mc.Dropdown.Controller({
+    onclickTab: function (name) { tabName1 = name; }.bind(this)
+  });
+  var dropdownCtrl2 = new mc.Dropdown.Controller({
+    tabName: tabName2
+  });
+
+  // via event, select item
+  dropdownCtrl1._onclickTab('action1');
+  result = result && test.result('dropdown 04, test 01', tabName1 === 'action1');
+
+  // via event, select another item
+  dropdownCtrl1._onclickTab('another action');
+  result = result && test.result('dropdown 04, test 02', tabName1 === 'another action');
+
+  // via mprop, select item
+  dropdownCtrl2._onclickTab('action1');
+  console.log(tabName2())
+  result = result && test.result('dropdown 04, test 03', tabName2() === 'action1');
+
+  // via mprop, select another item
+  dropdownCtrl2._onclickTab('another action');
+  result = result && test.result('dropdown 04, test 04', tabName2() === 'another action');
+
+  return result;
+});
+/** @jsx m */
+var mcTest = mcTest || {};
+
+// Test NavSearch
+
+mcTest.nav0 = {
+  flavor: 'fixed-top',
+  brandLabel: 'Foo',
+  brandUrl: '/foo',
+  viewComponents: function () {
+    return mc.NavSearch.view(mcTest.navSearch1Ctrl, {
+      flavor: 'nav-right',
+      label: 'Search',
+      placeholder: 'Search',
+      btnLabel: 'Submit'
+    });
+  }
+};
+
+mcTest.target0Closed =
+  m("nav", {class:"navbar navbar-default navbar-fixed-top"}, [
+    m("div", {class:"container-fluid"}, [
+      m("div", {class:"navbar-header"}, [
+        m("button", {type:"button", class:"navbar-toggle"}, [
+          m("span", {class:"sr-only"}, ["Toggle navigation"]),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"})
+        ]),
+        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
+      ]),
+      m("div", {class:"collapse navbar-collapse"}, [
+        m("form", {class:"navbar-form navbar-right"}, [
+          m("div", {class:"form-group"}, [
+            m("label", {class:"sr-only"}, ["Search"]),
+            m("input", {type:"text", class:"form-control", placeholder:"Search", value:"search this"})
+          ]),
+          m("button", {type:"button", class:"btn btn-default"}, ["Submit"])
+        ])
+      ])
+    ])
+  ])
+
+mcTest.target0Closed2 =
+  m("nav", {class:"navbar navbar-default navbar-fixed-top"}, [
+    m("div", {class:"container-fluid"}, [
+      m("div", {class:"navbar-header"}, [
+        m("button", {type:"button", class:"navbar-toggle"}, [
+          m("span", {class:"sr-only"}, ["Toggle navigation"]),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"})
+        ]),
+        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
+      ]),
+      m("div", {class:"collapse navbar-collapse"}, [
+        m("form", {class:"navbar-form navbar-right"}, [
+          m("div", {class:"form-group"}, [
+            m("label", {class:"sr-only"}, ["Search"]),
+            m("input", {type:"text", class:"form-control", placeholder:"Search", value:"typed in"})
+          ]),
+          m("button", {type:"button", class:"btn btn-default"}, ["Submit"])
+        ])
+      ])
+    ])
+  ])
+
+test('navSearch 01', function () {
+  // test navText, also tests basic nav
+  var result = true,
+    searchValue1 = 'search this',
+    searchValue2 = m.prop('search this'),
+    source1;
+
+  mcTest.navSearch1Ctrl = new mc.NavSearch.Controller({
+    searchValue: searchValue1,
+    onsubmit: function (value) {
+      searchValue1 = value;
+    }
+  });
+  var navCtrl1 = new mc.NavResponsive.Controller();
+
+  mcTest.navSearch2Ctrl = new mc.NavSearch.Controller({
+    searchValue: searchValue2
+  });
+  var navCtrl2 = new mc.NavResponsive.Controller();
+
+  // initial render
+  source1 = mc.NavResponsive.view(navCtrl1, mcTest.nav0);
+  result = result && test.compareRenders('navSearch 01, test 01', source1, mcTest.target0Closed);
+
+  // check search value changed
+  mcTest.navSearch1Ctrl._searchValue('typed in');
+  source1 = mc.NavResponsive.view(navCtrl1, mcTest.nav0);
+  result = result && test.compareRenders('navSearch 01, test 02', source1, mcTest.target0Closed2);
+
+  // via event, get search value
+  mcTest.navSearch1Ctrl._onsubmit();
+  result = result && test.result('navSearch 01, test 03', searchValue1 === 'typed in');
+
+  // via mprop, get search value
+  mcTest.navSearch2Ctrl._searchValue('typed in');
+  source1 = mc.NavResponsive.view(navCtrl2, mcTest.nav0);
+  result = result && test.compareRenders('navSearch 01, test 04', source1, mcTest.target0Closed2);
+  mcTest.navSearch2Ctrl._onsubmit();
+  result = result && test.result('navSearch 01, test 05', searchValue2() === 'typed in');
+
+  return result;
+});
+/** @jsx m */
+var mcTest = mcTest || {};
+
+// Test Nav using NavText, its simplest sub-component.
+
+mcTest.nav0 = {
+  flavor: 'fixed-top',
+  brandLabel: 'Foo',
+  brandUrl: '/foo',
+  viewComponents: function () {
+    return mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as'});
+  }
+};
+
+mcTest.target0Closed =
+  m("nav", {class:"navbar navbar-default navbar-fixed-top"}, [
+    m("div", {class:"container-fluid"}, [
+      m("div", {class:"navbar-header"}, [
+        m("button", {type:"button", class:"navbar-toggle"}, [
+          m("span", {class:"sr-only"}, ["Toggle navigation"]),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"})
+        ]),
+        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
+      ]),
+      m("div", {class:"collapse navbar-collapse"}, [
+        m("p", {class:"navbar-text"}, [m("span", ["Signed in as"])])
+      ])
+    ])
+  ])
+
+mcTest.nav1 = {
+  flavor: 'fixed-top',
+  brandLabel: 'Foo',
+  brandUrl: '/foo',
+  viewComponents: function () {
+    return mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'Bar'})
+  }
+};
+
+mcTest.target1Closed =
+  m("nav", {class:"navbar navbar-default navbar-fixed-top"}, [
+    m("div", {class:"container-fluid"}, [
+      m("div", {class:"navbar-header"}, [
+        m("button", {type:"button", class:"navbar-toggle"}, [
+          m("span", {class:"sr-only"}, ["Toggle navigation"]),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"})
+        ]),
+        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
+      ]),
+      m("div", {class:"collapse navbar-collapse"}, [
+        m("p", {class:"navbar-text"}, [
+          m("span", ["Signed in as"]),
+          m("a", {class:"navbar-link"}, [ " Bar"])
+        ])
+      ])
+    ])
+  ])
+
+mcTest.nav2 = {
+  brandLabel: 'Foo',
+  brandUrl: '/foo',
+  viewComponents: function () {
+    return mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'Bar'})
+  }
+};
+
+mcTest.target2Closed =
+  m("nav", {class:"navbar navbar-default"}, [
+    m("div", {class:"container-fluid"}, [
+      m("div", {class:"navbar-header"}, [
+        m("button", {type:"button", class:"navbar-toggle"}, [
+          m("span", {class:"sr-only"}, ["Toggle navigation"]),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"})
+        ]),
+        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
+      ]),
+      m("div", {class:"collapse navbar-collapse"}, [
+        m("p", {class:"navbar-text"}, [
+          m("span", ["Signed in as"]),
+          m("a", {class:"navbar-link"}, [ " Bar"])
+        ])
+      ])
+    ])
+  ])
+
+mcTest.target2Open =
+  m("nav", {class:"navbar navbar-default"}, [
+    m("div", {class:"container-fluid"}, [
+      m("div", {class:"navbar-header"}, [
+        m("button", {type:"button", class:"navbar-toggle"}, [
+          m("span", {class:"sr-only"}, ["Toggle navigation"]),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"}),
+          m("span", {class:"icon-bar"})
+        ]),
+        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
+      ]),
+      m("div", {class:"collapse navbar-collapse in"}, [
+        m("p", {class:"navbar-text"}, [
+          m("span", ["Signed in as"]),
+          m("a", {class:"navbar-link"}, [ " Bar"])
+        ])
+      ])
+    ])
+  ])
+
+test('nav & navTest 01', function () {
+  // test navText, also tests basic nav
+  var result = true,
+    source1;
+
+  var navCtrl = new mc.NavResponsive.Controller();
+
+  // text, no link
+  source1 = mc.NavResponsive.view(navCtrl, mcTest.nav0);
+  result = result && test.compareRenders('nav & navTest 01, test 01', source1, mcTest.target0Closed);
+
+  // text, with link
+  source1 = mc.NavResponsive.view(navCtrl, mcTest.nav1);
+  result = result && test.compareRenders('nav & navTest 01, test 02', source1, mcTest.target1Closed);
+
+  // default nav flavor
+  source1 = mc.NavResponsive.view(navCtrl, mcTest.nav2);
+  result = result && test.compareRenders('nav & navTest 01, test 03', source1, mcTest.target2Closed);
+
+  // open nav
+  navCtrl._onclickNavOpen();
+  source1 = mc.NavResponsive.view(navCtrl, mcTest.nav2);
+  result = result && test.compareRenders('nav & navTest 01, test 04', source1, mcTest.target2Open);
+
+  return result;
+});
+/** @jsx m */
+var mcTest = mcTest || {};
+
+mcTest.tabs0 = {
+  flavor: 'tabs',
+  tabs: [
+    { name: 'financials', label: 'Financials' },
+    { name: 'foo', label: 'Disabled', isDisabled: true },
+    { name: 'personnel', label: 'Personnel' },
+    { name: 'dropdown', label: 'Dropdown', dropdown: [
+      {label: 'Primary actions', type: 'header' },
+      {name: 'action', label: 'Action'},
+      {name: 'another action', label: 'Another action', isDisabled: true },
+      {type: 'divider' },
+      {label: 'Secondary actions', type: 'header' },
+      {name: 'separated action', label: 'Separated action' },
+      {label: 'Exit bar', redirectTo: '/bar'}
+    ]},
+    { name: 'exit', label: 'Exit /foo', redirectTo:  '/foo' },
+    { name: 'exit2', label: 'Exit /bar', redirectTo:  '/bar', isDisabled: true }
+  ]
+};
+
+mcTest.target0Closed =
+  m("ul", {class:"nav nav-tabs"}, [
+    m("li", {class:"active"}, [m("a", ["Financials"])]),
+    m("li", {class:"disabled"}, [m("a", ["Disabled"])]),
+    m("li", [m("a", ["Personnel"])]),
+    m("li", {class:"dropdown"}, [m("a", {class:"dropdown-toggle"}, [m("span", ["Dropdown " ]),m("span", {class:"caret"})])]),
+    m("li", [m("a", {href:"/public/tabs.html?/foo"}, ["Exit /foo"])]),
+    m("li", {class:"disabled"}, [m("a", ["Exit /bar"])])
+  ])
+
+mcTest.target0Open =
+  m("ul", {class:"nav nav-tabs"}, [
+    m("li", {class:"active"}, [m("a", ["Financials"])]),
+    m("li", {class:"disabled"}, [m("a", ["Disabled"])]),
+    m("li", [m("a", ["Personnel"])]),
+    m("li", {class:"dropdown open"}, [m("a", {class:"dropdown-toggle"}, [m("span", ["Dropdown " ]),m("span", {class:"caret"})]),
+      m("ul", {class:"dropdown-menu"}, [
+        m("li", {class:"dropdown-header", tabindex:"-1"}, ["Primary actions"]),
+        m("li", [m("a", ["Action"])]),m("li", {class:"disabled"}, [m("a", ["Another action"])]),
+        m("li", {class:"divider", style:"margin: 6px 0px;"}),
+        m("li", {class:"dropdown-header", tabindex:"-1"}, ["Secondary actions"]),
+        m("li", [m("a", ["Separated action"])]),
+        m("li", [m("a", {href:"/public/tabs.html?/bar"}, ["Exit bar"])])
+      ])
+    ]),
+    m("li", [m("a", {href:"/public/tabs.html?/foo"}, ["Exit /foo"])]),
+    m("li", {class:"disabled"}, [m("a", ["Exit /bar"])])
+  ])
+
+mcTest.dropdown1 = {
+  name: 'dropdown1',
+  label: 'Dropdown-1',
+  flavor: 'btn',
+  isSplit: true,
+  selectors: '.btn-primary',
+  dropdown: [
+    {label: 'Primary actions', type: 'header' },
+    {name: 'action1', label: 'Action'},
+    {name: 'another action', label: 'Another action', isDisabled: true },
+    {type: 'divider' },
+    {label: 'Secondary actions', type: 'header' },
+    {name: 'separated action', label: 'Separated action' },
+    {label: 'Exit bar', redirectTo: '/bar'}
+  ]
+};
+
+mcTest.target1Closed =
+  m("div", {class:"btn-group"}, [
+    m("button", {type:"button", class:"btn btn-primary"}, ["Dropdown-1 " ]),
+    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
+      m("span", {class:"caret"}),
+      m("span", {class:"sr-only"}, ["Toggle dropdown"])
+    ])
+  ])
+
+mcTest.target1Open =
+  m("div", {class:"btn-group open"}, [
+    m("button", {type:"button", class:"btn btn-primary"}, ["Dropdown-1 " ]),
+    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
+      m("span", {class:"caret"}),
+      m("span", {class:"sr-only"}, ["Toggle dropdown"])
+    ]),
+    m("ul", {class:"dropdown-menu"}, [
+      m("li", {class:"dropdown-header", tabindex:"-1"}, ["Primary actions"]),
+      m("li", [m("a", ["Action"])]),
+      m("li", {class:"disabled"}, [m("a", ["Another action"])]),
+      m("li", {class:"divider", style:"margin: 6px 0px;"}),
+      m("li", {class:"dropdown-header", tabindex:"-1"}, ["Secondary actions"]),
+      m("li", [m("a", ["Separated action"])]),
+      m("li", [m("a", {href:"/public/dropdown.html?/bar"}, ["Exit bar"])])
+    ])
+  ])
+
+test('tabs 01', function () {
+  // test tabs dropdown opens and closes
+  var result = true,
+    source1;
+
+  var tabsCtrl1 = new mc.Tabs.Controller({ activeTab: 'financials', onclickTab: function () {} });
+
+  // render tabs
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  result = result && test.compareRenders('tabs 01, test 01', source1, mcTest.target0Closed);
+
+  // open tab dropdown
+  tabsCtrl1._getDropdownCtrl(0)._onclickDropdown();
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  result = result && test.compareRenders('tabs 01, test 02', source1, mcTest.target0Open);
+
+  // close tag dropdown
+  tabsCtrl1._getDropdownCtrl(0)._onclickDropdown();
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  result = result && test.compareRenders('tabs 01, test 03', source1, mcTest.target0Closed);
+
+  return result;
+});
+
+test('tabs 02', function () {
+  // test tab dropdown closes when another dropdown is clicked
+  var result = true,
+    source1, source2;
+
+  var tabsCtrl1 = new mc.Tabs.Controller({ activeTab: 'financials', onclickTab: function () {} });
+  var dropdownCtrl2 = new mc.Dropdown.Controller({ onclickTab: function () {} });
+
+  // render closed dropdowns
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
+  result = result && test.compareRenders('tabs 02, test 01a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('tabs 02, test 01b', source2, mcTest.target1Closed);
+
+  // open tab dropdown
+  tabsCtrl1._getDropdownCtrl(0)._onclickDropdown();
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
+  result = result && test.compareRenders('tabs 02, test 02a', source1, mcTest.target0Open);
+  result = result && test.compareRenders('tabs 02, test 02b', source2, mcTest.target1Closed);
+
+  // open dropdown
+  dropdownCtrl2._onclickDropdown();
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
+  result = result && test.compareRenders('tabs 02, test 03a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('tabs 02, test 03b', source2, mcTest.target1Open);
+
+  // open tab dropdown
+  tabsCtrl1._getDropdownCtrl(0)._onclickDropdown();
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
+  result = result && test.compareRenders('tabs 02, test 04a', source1, mcTest.target0Open);
+  result = result && test.compareRenders('tabs 02, test 04b', source2, mcTest.target1Closed);
+
+  // open dropdown
+  dropdownCtrl2._onclickDropdown();
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
+  result = result && test.compareRenders('tabs 02, test 05a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('tabs 02, test 05b', source2, mcTest.target1Open);
+
+  // close dropdown
+  dropdownCtrl2._onclickDropdown();
+  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
+  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
+  result = result && test.compareRenders('tabs 02, test 06a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('tabs 02, test 06b', source2, mcTest.target1Closed);
+
+  return result;
+});
+
+test('tabs 03', function () {
+  // test tab/item selection
+  var result = true,
+    tabName1,
+    tabName2 = m.prop('financials');;
+
+  var tabsCtrl1 = new mc.Tabs.Controller({
+    activeTab: 'financials',
+    onclickTab: function (name) { tabName1 = name; }.bind(this)
+  });
+  var tabsCtrl2 = new mc.Tabs.Controller({
+    activeTab: tabName2
+  });
+
+  // via event, select tab
+  tabsCtrl1._onclickTab('personnel');
+  result = result && test.result('tabs 03, test 01', tabName1 === 'personnel');
+
+  // via event, select another tab
+  tabsCtrl1._onclickTab('financials');
+  result = result && test.result('tabs 03, test 02', tabName1 === 'financials');
+
+  // via event, select item from dropdown
+  tabsCtrl1._getDropdownCtrl(0)._onclickTab('action');
+  result = result && test.result('tabs 03, test 03', tabName1 === 'action');
+
+  // via mprop, select tab
+  tabsCtrl2._onclickTab('personnel');
+  result = result && test.result('tabs 03, test 04', tabName2() === 'personnel');
+
+  // via mprop, select another tab
+  tabsCtrl2._onclickTab('financials');
+  result = result && test.result('tabs 03, test 05', tabName2() === 'financials');
+
+  // via mprop, select item from dropdown
+  tabsCtrl2._getDropdownCtrl(0)._onclickTab('action');
+  result = result && test.result('tabs 03, test 06', tabName2() === 'action');
 
   return result;
 });

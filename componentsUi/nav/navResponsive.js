@@ -1,28 +1,21 @@
+/*global m:false */
+// NavResponsive ===============================================================
 mc.NavResponsive = {
-  controller: function (options) {
-    console.log('\n.. in mc.NavResponsive.controller. options=', options);
-    options = options || {};
-    //this.activeTab = mc.utils.coerceToMprop(options.activeTab, '');
-    this.isCollapsedOpen = false;
-
-    this.onclickNavOpen = function () {
-      this.isCollapsedOpen = !this.isCollapsedOpen;
+  Controller: function () {
+    this._isCollapsedOpen = false;
+    this._onclickNavOpen = function () {
+      this._isCollapsedOpen = !this._isCollapsedOpen;
     }.bind(this);
-
-    this.activeTab = m.prop('finance');
-    this.tabsCtrl = new mc.Tabs.controller({
-      activeTab: this.activeTab
-    });
   },
 
-  // options: <props> brandLabel, brandUrl, alignRight
+  // options: <props> brandLabel, brandUrl, flavor, viewComponents:fcn
   view: function (ctrl, options) {
     var flavors = {
-      default: '.navbar.navbar-default',
+      'default': '.navbar.navbar-default',
       'fixed-top': '.navbar.navbar-default.navbar-fixed-top', // needs style: body { padding-top: 70px }
       'fixed-bottom': '.navbar.navbar-default.navbar-fixed-bottom', // needs style: body { padding-bottom: 70px }
       'static-top': '.navbar.navbar-default.navbar-static-top',
-      inverse: '.navbar.navbar-default.navbar-inverse',
+      'inverse': '.navbar.navbar-default.navbar-inverse',
       'fixed-top-inverse': '.navbar.navbar-default.navbar-fixed-top.navbar-inverse', // needs style: body { padding-top: 70px }
       'fixed-bottom-inverse': '.navbar.navbar-default.navbar-fixed-bottom.navbar-inverse', // needs style: body { padding-bottom: 70px }
       'static-top-inverse': '.navbar.navbar-default.navbar-static-top.navbar-inverse'
@@ -33,7 +26,7 @@ mc.NavResponsive = {
 
         // Brand name & collapsed nav toggle
         m('.navbar-header', [
-          m('button[type=button].navbar-toggle', {onclick: ctrl.onclickNavOpen}, [
+          m('button[type=button].navbar-toggle', {onclick: ctrl._onclickNavOpen}, [
             m('span.sr-only', 'Toggle navigation'),
             m('span.icon-bar', ''),
             m('span.icon-bar', ''),
@@ -43,8 +36,8 @@ mc.NavResponsive = {
         ]),
 
         // navbar contents
-        m('.collapse.navbar-collapse' + (ctrl.isCollapsedOpen ? '.in' : ''),
-          options.viewContents()
+        m('.collapse.navbar-collapse' + (ctrl._isCollapsedOpen ? '.in' : ''),
+          options.viewComponents()
         )
       ])
     ]);
