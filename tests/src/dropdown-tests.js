@@ -148,6 +148,8 @@ test('dropdown 02', function () {
   result = result && test.compareRenders('dropdown 02, test 04b', source2, mcTest.target0Closed);
 
   // open #2 again
+  console.log('source1=', dropdownCtrl1._isDropdownOpen);
+  console.log('source2=', dropdownCtrl2._isDropdownOpen);
   dropdownCtrl2._onclickDropdown();
   source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
   source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);

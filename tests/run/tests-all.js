@@ -146,33 +146,29 @@ function normalizeJsx (jsx, ifKeepFcns) {
   }
 }
 Mithril = m = new function app(window) {
-	var selectorCache = {}
 	var type = {}.toString
 	var parser = /(?:(^|#|\.)([^#\.\[\]]+))|(\[.+?\])/g, attrParser = /\[(.+?)(?:=("|'|)(.*?)\2)?\]/
-
+	
 	function m() {
 		var args = arguments
 		var hasAttrs = type.call(args[1]) == "[object Object]" && !("tag" in args[1]) && !("subtree" in args[1])
 		var attrs = hasAttrs ? args[1] : {}
 		var classAttrName = "class" in attrs ? "class" : "className"
-		var cell = selectorCache[args[0]]
-		if (cell === undefined) {
-			selectorCache[args[0]] = cell = {tag: "div", attrs: {}}
-			var match, classes = []
-			while (match = parser.exec(args[0])) {
-				if (match[1] == "") cell.tag = match[2]
-				else if (match[1] == "#") cell.attrs.id = match[2]
-				else if (match[1] == ".") classes.push(match[2])
-				else if (match[3][0] == "[") {
-					var pair = attrParser.exec(match[3])
-					cell.attrs[pair[1]] = pair[3] || (pair[2] ? "" :true)
-				}
+		var cell = {tag: "div", attrs: {}}
+		var match, classes = []
+		while (match = parser.exec(args[0])) {
+			if (match[1] == "") cell.tag = match[2]
+			else if (match[1] == "#") cell.attrs.id = match[2]
+			else if (match[1] == ".") classes.push(match[2])
+			else if (match[3][0] == "[") {
+				var pair = attrParser.exec(match[3])
+				cell.attrs[pair[1]] = pair[3] || (pair[2] ? "" :true)
 			}
-			if (classes.length > 0) cell.attrs[classAttrName] = classes.join(" ")
 		}
-		cell = clone(cell)
-		cell.attrs = clone(cell.attrs)
+		if (classes.length > 0) cell.attrs[classAttrName] = classes.join(" ")
+		
 		cell.children = hasAttrs ? args[2] : args[1]
+		
 		for (var attrName in attrs) {
 			if (attrName == classAttrName) cell.attrs[attrName] = (cell.attrs[attrName] || "") + " " + attrs[attrName]
 			else cell.attrs[attrName] = attrs[attrName]
@@ -198,10 +194,11 @@ Mithril = m = new function app(window) {
 		}
 
 		if (dataType == "[object Array]") {
+			data = flatten(data)
 			var nodes = [], intact = cached.length === data.length, subArrayCount = 0
-
+			
 			var DELETION = 1, INSERTION = 2 , MOVE = 3
-			var existing = {}, shouldMaintainIdentities = false
+			var existing = {}, unkeyed = [], shouldMaintainIdentities = false
 			for (var i = 0; i < cached.length; i++) {
 				if (cached[i] && cached[i].attrs && cached[i].attrs.key !== undefined) {
 					shouldMaintainIdentities = true
@@ -210,16 +207,19 @@ Mithril = m = new function app(window) {
 			}
 			if (shouldMaintainIdentities) {
 				for (var i = 0; i < data.length; i++) {
-					if (data[i] && data[i].attrs && data[i].attrs.key !== undefined) {
-						var key = data[i].attrs.key
-						if (!existing[key]) existing[key] = {action: INSERTION, index: i}
-						else existing[key] = {action: MOVE, index: i, from: existing[key].index, element: parentElement.childNodes[existing[key].index]}
+					if (data[i] && data[i].attrs) {
+						if (data[i].attrs.key !== undefined) {
+							var key = data[i].attrs.key
+							if (!existing[key]) existing[key] = {action: INSERTION, index: i}
+							else existing[key] = {action: MOVE, index: i, from: existing[key].index, element: parentElement.childNodes[existing[key].index]}
+						}
+						else unkeyed.push({index: i, element: parentElement.childNodes[i]})
 					}
 				}
 				var actions = Object.keys(existing).map(function(key) {return existing[key]})
-				var changes = actions.sort(function(a, b) {return a.action - b.action || b.index - a.index})
-				var newCached = new Array(cached.length)
-
+				var changes = actions.sort(function(a, b) {return a.action - b.action || a.index - b.index})
+				var newCached = cached.slice()
+				
 				for (var i = 0, change; change = changes[i]; i++) {
 					if (change.action == DELETION) {
 						clear(cached[change.index].nodes, cached[change.index])
@@ -227,11 +227,11 @@ Mithril = m = new function app(window) {
 					}
 					if (change.action == INSERTION) {
 						var dummy = window.document.createElement("div")
-						dummy.key = data[change.index].attrs.key.toString()
+						dummy.key = data[change.index].attrs.key
 						parentElement.insertBefore(dummy, parentElement.childNodes[change.index])
 						newCached.splice(change.index, 0, {attrs: {key: data[change.index].attrs.key}, nodes: [dummy]})
 					}
-
+					
 					if (change.action == MOVE) {
 						if (parentElement.childNodes[change.index] !== change.element) {
 							parentElement.insertBefore(change.element, parentElement.childNodes[change.index])
@@ -239,27 +239,30 @@ Mithril = m = new function app(window) {
 						newCached[change.index] = cached[change.from]
 					}
 				}
+				for (var i = 0; i < unkeyed.length; i++) {
+					var change = unkeyed[i]
+					parentElement.insertBefore(change.element, parentElement.childNodes[change.index])
+					newCached[change.index] = cached[change.index]
+				}
 				cached = newCached
 				cached.nodes = []
 				for (var i = 0, child; child = parentElement.childNodes[i]; i++) cached.nodes.push(child)
 			}
-
+			
 			for (var i = 0, cacheCount = 0; i < data.length; i++) {
 				var item = build(parentElement, parentTag, cached, index, data[i], cached[cacheCount], shouldReattach, index + subArrayCount || subArrayCount, editable, namespace, configs)
 				if (item === undefined) continue
 				if (!item.nodes.intact) intact = false
-				subArrayCount += item instanceof Array ? item.length : 1
+				var isArray = item instanceof Array
+				subArrayCount += isArray ? item.length : 1
 				cached[cacheCount++] = item
 			}
 			if (!intact) {
 				for (var i = 0; i < data.length; i++) {
 					if (cached[i] !== undefined) nodes = nodes.concat(cached[i].nodes)
 				}
-				for (var i = nodes.length, node; node = cached.nodes[i]; i++) {
-					if (node.parentNode !== null && node.parentNode.childNodes.length != nodes.length) {
-						node.parentNode.removeChild(node)
-						if (cached[i]) unload(cached[i])
-					}
+				for (var i = 0, node; node = cached.nodes[i]; i++) {
+					if (node.parentNode !== null && nodes.indexOf(node) < 0) node.parentNode.removeChild(node)
 				}
 				for (var i = cached.nodes.length, node; node = nodes[i]; i++) {
 					if (node.parentNode === null) parentElement.appendChild(node)
@@ -267,7 +270,7 @@ Mithril = m = new function app(window) {
 				if (data.length < cached.length) cached.length = data.length
 				cached.nodes = nodes
 			}
-
+			
 		}
 		else if (dataType == "[object Object]") {
 			if (data.tag != cached.tag || Object.keys(data.attrs).join() != Object.keys(cached.attrs).join() || data.attrs.id != cached.attrs.id) {
@@ -343,6 +346,7 @@ Mithril = m = new function app(window) {
 		return cached
 	}
 	function setAttributes(node, tag, dataAttrs, cachedAttrs, namespace) {
+		var groups = {}
 		for (var attrName in dataAttrs) {
 			var dataAttr = dataAttrs[attrName]
 			var cachedAttr = cachedAttrs[attrName]
@@ -384,7 +388,7 @@ Mithril = m = new function app(window) {
 				if (cached[i]) unload(cached[i])
 			}
 		}
-		nodes.length = 0
+		if (nodes.length != 0) nodes.length = 0
 	}
 	function unload(cached) {
 		if (cached.configContext && typeof cached.configContext.onunload == "function") cached.configContext.onunload()
@@ -413,17 +417,24 @@ Mithril = m = new function app(window) {
 		}
 		return nodes
 	}
-	function clone(object) {
-		var result = {}
-		for (var prop in object) result[prop] = object[prop]
-		return result
+	function flatten(data) {
+		var flattened = []
+		for (var i = 0; i < data.length; i++) {
+			var item = data[i]
+			if (item instanceof Array) flattened.push.apply(flattened, flatten(item))
+			else flattened.push(item)
+		}
+		return flattened
 	}
-	function autoredraw(callback, object) {
+	function autoredraw(callback, object, group) {
 		return function(e) {
 			e = e || event
 			m.startComputation()
 			try {return callback.call(object, e)}
-			finally {m.endComputation()}
+			finally {
+				if (!lastRedrawId) lastRedrawId = -1;
+				m.endComputation()
+			}
 		}
 	}
 
@@ -437,9 +448,10 @@ Mithril = m = new function app(window) {
 			if (html === undefined) html = window.document.createElement("html")
 			if (node.nodeName == "HTML") html = node
 			else html.appendChild(node)
-			if (window.document.documentElement !== html) {
+			if (window.document.documentElement && window.document.documentElement !== html) {
 				window.document.replaceChild(html, window.document.documentElement)
 			}
+			else window.document.appendChild(html)
 		},
 		insertBefore: function(node) {
 			this.appendChild(node)
@@ -467,7 +479,7 @@ Mithril = m = new function app(window) {
 		return value
 	}
 
-	var roots = [], modules = [], controllers = [], now = 0, lastRedraw = 0, lastRedrawId = 0, computePostRedrawHook = null
+	var roots = [], modules = [], controllers = [], lastRedrawId = 0, computePostRedrawHook = null
 	m.module = function(root, module) {
 		var index = roots.indexOf(root)
 		if (index < 0) index = roots.length
@@ -487,13 +499,15 @@ Mithril = m = new function app(window) {
 		}
 	}
 	m.redraw = function() {
-		now = window.performance && window.performance.now ? window.performance.now() : new window.Date().getTime()
-		if (now - lastRedraw > 16) redraw()
-		else {
-			var cancel = window.cancelAnimationFrame || window.clearTimeout
-			var defer = window.requestAnimationFrame || window.setTimeout
+		var cancel = window.cancelAnimationFrame || window.clearTimeout
+		var defer = window.requestAnimationFrame || window.setTimeout
+		if (lastRedrawId) {
 			cancel(lastRedrawId)
 			lastRedrawId = defer(redraw, 0)
+		}
+		else {
+			redraw()
+			lastRedrawId = defer(function() {lastRedrawId = null}, 0)
 		}
 	}
 	function redraw() {
@@ -504,7 +518,7 @@ Mithril = m = new function app(window) {
 			computePostRedrawHook()
 			computePostRedrawHook = null
 		}
-		lastRedraw = now
+		lastRedrawId = null
 	}
 
 	var pendingRequests = 0
@@ -542,7 +556,6 @@ Mithril = m = new function app(window) {
 			}
 			computePostRedrawHook = setScroll
 			window[listener]()
-			currentRoute = normalizeRoute(window.location[m.route.mode])
 		}
 		else if (arguments[0].addEventListener) {
 			var element = arguments[0]
@@ -561,7 +574,7 @@ Mithril = m = new function app(window) {
 			if (querystring) currentRoute += (currentRoute.indexOf("?") === -1 ? "?" : "&") + querystring
 
 			var shouldReplaceHistoryEntry = (arguments.length == 3 ? arguments[2] : arguments[1]) === true
-
+			
 			if (window.history.pushState) {
 				computePostRedrawHook = function() {
 					window.history[shouldReplaceHistoryEntry ? "replaceState" : "pushState"](null, window.document.title, modes[m.route.mode] + currentRoute)
@@ -586,9 +599,7 @@ Mithril = m = new function app(window) {
 
 		for (var route in router) {
 			if (route == path) {
-				var cacheKey = getCellCacheKey(root)
-				clear(root.childNodes, cellCache[cacheKey])
-				cellCache[cacheKey] = undefined
+				reset(root)
 				m.module(root, router[route])
 				return true
 			}
@@ -596,9 +607,7 @@ Mithril = m = new function app(window) {
 			var matcher = new RegExp("^" + route.replace(/:[^\/]+?\.{3}/g, "(.*?)").replace(/:[^\/]+/g, "([^\\/]+)") + "\/?$")
 
 			if (matcher.test(path)) {
-				var cacheKey = getCellCacheKey(root)
-				clear(root.childNodes, cellCache[cacheKey])
-				cellCache[cacheKey] = undefined
+				reset(root)
 				path.replace(matcher, function() {
 					var keys = route.match(/:[^\/]+/g) || []
 					var values = [].slice.call(arguments, 1, -2)
@@ -608,6 +617,11 @@ Mithril = m = new function app(window) {
 				return true
 			}
 		}
+	}
+	function reset(root) {
+		var cacheKey = getCellCacheKey(root)
+		clear(root.childNodes, cellCache[cacheKey])
+		cellCache[cacheKey] = undefined
 	}
 	function routeUnobtrusive(e) {
 		e = e || event
@@ -722,7 +736,6 @@ Mithril = m = new function app(window) {
 	function ajax(options) {
 		var xhr = new window.XMLHttpRequest
 		xhr.open(options.method, options.url, true, options.user, options.password)
-    if (options.contentType) xhr.setRequestHeader('Content-type',options.contentType)
 		xhr.onreadystatechange = function() {
 			if (xhr.readyState === 4) {
 				if (xhr.status >= 200 && xhr.status < 300) options.onload({type: "load", target: xhr})
@@ -736,7 +749,7 @@ Mithril = m = new function app(window) {
 			var maybeXhr = options.config(xhr, options)
 			if (maybeXhr !== undefined) xhr = maybeXhr
 		}
-		xhr.send(options.data)
+		xhr.send(options.method == "GET" ? "" : options.data)
 		return xhr
 	}
 	function bindData(xhrOptions, data, serialize) {
@@ -829,6 +842,139 @@ mc.utils.getValue = function (param, defaultValue) {
   var value = typeof param === 'function' ? param() : param;
   return value === undefined ? defaultValue : value;
 };
+
+// http://davidwalsh.name/javascript-debounce-function
+mc.utils.debounce = function (func, wait, immediate) {
+  var timeout;
+  return function() {
+    var context = this, args = arguments;
+    clearTimeout(timeout);
+    timeout = setTimeout(function() {
+      timeout = null;
+      if (!immediate) func.apply(context, args);
+    }, wait);
+    if (immediate && !timeout) func.apply(context, args);
+  };
+};
+/*global m:false */
+// Dropdown ====================================================================
+mc.Affix = {
+  // options: <props> activeTab() <event> onclickTab
+  Controller: function (options) {
+    options = options || {};
+    this._activeTab = mc.utils.getValue(options.activeTab, '');
+    this._sections = mc.utils.getValue(options.sections, null);
+
+    this._onclickTab = function (name, el) {
+      if (name.charAt(0) !== '#') {
+        el.preventDefault();
+        el.stopPropagation();
+      }
+
+      mc._comm.lastDropdownId = -1; // will force closed any open dropdowns
+      this._activeTab = name;
+      if (typeof options.activeTab === 'function') { options.activeTab(name); }
+      if (options.onclickTab) { options.onclickTab(name); }
+    }.bind(this);
+
+    this._setFirstVisibleTab = function (name) {
+      this._activeTab = name;
+    }
+  },
+
+  view: function (ctrl, options) {
+    options = options || {};
+    var hrefIds = [],
+      scrollHandler, affixEl;
+
+    if (ctrl._sections && ctrl._activeTab.charAt(0) === '#') {
+      setTimeout(function () { // reposition list once the DOM is (re)drawn
+        repositionAffix();
+
+        setTimeout(function () { // reposition list as window scrolls
+          scrollHandler  = mc.utils.debounce(function () {
+            if (!setFirstVisibleTab()) { repositionAffix(); }
+          }, 250);
+          if (window.addEventListener) {
+            window.addEventListener('scroll', scrollHandler);
+            window.addEventListener('resize', scrollHandler);
+          } else {
+            window.attachEvent('scroll', scrollHandler);
+            window.attachEvent('resize', scrollHandler);
+          }
+        }, 15);
+      }, 15);
+    }
+
+    return m('.mc-affix', {
+        style: {'margin-top': '0px'}, // placeholder, it gets reset in setTimeout
+        config: function (el) { affixEl = el; }
+      },
+      m('ul.nav.mc-affix-nav',
+        options.list.map(function (item) {
+
+          if (!item.list) { return viewItem(item); }
+
+          var isActive = item.name === ctrl._activeTab ||
+            item.list.some(function (item) {
+              return item.name === ctrl._activeTab;
+            });
+          var attrs = {
+            onclick: ctrl._onclickTab.bind(ctrl, item.name),
+            href: item.name.charAt(0) === '#' ? item.name : ''
+          };
+          if (item.name.charAt(0) === '#') { hrefIds.push(item.name.substr(1)); }
+
+          return m('li' + (isActive ? '.active' : ''), [
+            m('a', attrs, item.label || item.name),
+            m('ul.nav',
+              item.list.map(function (item) { return viewItem(item); })
+            )
+          ]);
+        })
+      )
+    );
+
+    function viewItem (item) {
+      var attrs = {
+        onclick: ctrl._onclickTab.bind(ctrl, item.name),
+        href: item.name.charAt(0) === '#' ? item.name : ''
+      };
+      if (item.name.charAt(0) === '#') { hrefIds.push(item.name.substr(1)); }
+
+      return m('li' + (item.name === ctrl._activeTab ? '.active' : ''),
+        m('a', attrs, item.label || item.name
+        )
+      );
+    }
+
+    function setFirstVisibleTab () {
+      for (var i = 0, len = hrefIds.length; i < len; i += 1) {
+        if (isElInViewport(document.getElementById(hrefIds[i]))) {
+          ctrl._setFirstVisibleTab('#' + hrefIds[i]);
+          m.redraw();
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function repositionAffix () {
+      var sections = document.getElementById(ctrl._sections);
+      if (sections) {
+        affixEl.style.marginTop = Math.max(-sections.getBoundingClientRect().top, 0) + 'px'
+      }
+    }
+
+    // http://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport/7557433#7557433
+    function isElInViewport (el) {
+      var rect = el.getBoundingClientRect(); // IE8+
+      return rect.top >= 0 && rect.left >= 0 &&
+        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+        rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+    }
+  }
+};
 /*global m:false */
 
 // Button ======================================================================
@@ -913,7 +1059,7 @@ mc.Dropdown = {
   },
 
   // ctrl: <props> _isDropdownOpen, _dropdownId <events> _onclickTab, onClickDropdown
-  // options: flavor, label, isDisabled, isActive, isSplit, selectors, dropdown[]
+  // options: flavor, label, isDisabled, isActive, isSplit, alignRight, selectors, dropdown[]
   // selectors: .btn-default -primary -success -info -warning -danger -link
   // selectors: .btn-lg -sm -xs
   // selectors: .btn-block
@@ -974,7 +1120,7 @@ mc.Dropdown = {
   },
 
   // ctrl {}: <events> _onclickTab
-  // options.dropdown[]: label, type, isDisabled, alignRight, redirectTo
+  // options.dropdown[]: type, name, label, isDisabled, redirectTo
   viewMenu: function (ctrl, options) {
     return m('ul.dropdown-menu' + (options.alignRight ? '.dropdown-menu-right' : ''),
       options.dropdown.map(function (menuItem) {
@@ -1156,8 +1302,7 @@ mc.Tabs = {
         pills: '.nav.nav-pills',
         'pills-stacked': '.nav.nav-pills.nav-stacked',
         nav: '.nav.navbar-nav',
-        'nav-right': '.nav.navbar-nav.navbar-right',
-        'sidebar': '.nav.sidenav'
+        'nav-right': '.nav.navbar-nav.navbar-right'
       },
       dropdownCounter = -1;
 
@@ -1197,115 +1342,40 @@ mc.Tabs = {
 /** @jsx m */
 var mcTest = mcTest || {};
 
-// Dropdown buttons are dropdown controls with special styling.
-// These tests therefore just check that styling.
-
-mcTest.button0 = {
-    name: 'button0',
-    label: 'Button-0',
-    flavor: 'btn',
-    dropdown: [
-      {label: 'Primary actions', type: 'header' },
-      {name: 'action1', label: 'Action'},
-      {name: 'another action', label: 'Another action', isDisabled: true },
-      {type: 'divider' },
-      {label: 'Secondary actions', type: 'header' },
-      {name: 'separated action', label: 'Separated action' },
-      {label: 'Exit bar', redirectTo: '/bar'}
-    ]
-};
-
-mcTest.button1 = mc.utils.extend({}, mcTest.button0, {name: 'button1', label: 'Button-1', flavor: 'btn-up', selectors: '.btn-danger.btn-lg'});
-mcTest.button2 = mc.utils.extend({}, mcTest.button0, {name: 'button2', label: 'Button-2', flavor: 'btn',    isSplit: true });
-mcTest.button3 = mc.utils.extend({}, mcTest.button0, {name: 'button3', label: 'Button-3', flavor: 'btn-up', isSplit: true });
-
-mcTest.target0Closed =
-  m("div", {class:"btn-group"}, [
-    m("button", {type:"button", class:"btn btn-default dropdown-toggle btn-primary"}, [
-      m("span", ["Button-0 " ]),
-      m("span", {class:"caret"})
-    ])
-  ])
-
-mcTest.target1Closed =
-  m("div", {class:"btn-group dropup"}, [
-    m("button", {type:"button", class:"btn btn-default dropdown-toggle btn-danger btn-lg"}, [
-      m("span", ["Button-1 " ]),
-      m("span", {class:"caret"})
-    ])
-  ])
-
-mcTest.target2Closed =
-  m("div", {class:"btn-group"}, [
-    m("button", {type:"button", class:"btn btn-primary"}, ["Button-2 " ]),
-    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
-      m("span", {class:"caret"}),
-      m("span", {class:"sr-only"}, ["Toggle dropdown"])
-    ])
-  ])
-
-mcTest.target3Closed =
-  m("div", {class:"btn-group dropup"}, [
-    m("button", {type:"button", class:"btn btn-primary"}, ["Button-3 " ]),
-    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
-      m("span", {class:"caret"}),
-      m("span", {class:"sr-only"}, ["Toggle dropdown"])
-    ])
-  ])
-
-
-test('buttonDropdown 01', function () {
-  // test dropdown opens and closes
-  var result = true,
-    source1;
-
-  var buttonCtrl = new mc.Dropdown.Controller({ onclickTab: function () {} });
-
-  // dropdown, not split
-  source1 = mc.Dropdown.view(buttonCtrl, mcTest.button0);
-  result = result && test.compareRenders('buttonDropdown 01, test 01', source1, mcTest.target0Closed);
-
-  // dropup, not split
-  source1 = mc.Dropdown.view(buttonCtrl, mcTest.button1);
-  result = result && test.compareRenders('buttonDropdown 01, test 02', source1, mcTest.target1Closed);
-
-  // dropdown, split
-  source1 = mc.Dropdown.view(buttonCtrl, mcTest.button2);
-  result = result && test.compareRenders('buttonDropdown 01, test 03', source1, mcTest.target2Closed);
-
-  // dropup, split
-  source1 = mc.Dropdown.view(buttonCtrl, mcTest.button3);
-  result = result && test.compareRenders('buttonDropdown 01, test 04', source1, mcTest.target3Closed);
-
-  return result;
-});
-
-/** @jsx m */
-var mcTest = mcTest || {};
-
-// ButtonDropdown components always have a Dropdown sub-component.
-// We test various ButtonDropdown features here.
-
-mcTest.dropdown0 = {
-    name: 'dropdown0',
-    label: 'Dropdown-0',
-    flavor: 'dropdown',
-    dropdown: [
-      {label: 'Primary actions', type: 'header' },
-      {name: 'action1', label: 'Action'},
-      {name: 'another action', label: 'Another action', isDisabled: true },
-      {type: 'divider' },
-      {label: 'Secondary actions', type: 'header' },
-      {name: 'separated action', label: 'Separated action' },
-      {label: 'Exit bar', redirectTo: '/bar'}
-    ]
+mcTest.affix0 = {
+  list: [
+    {name: '#js-overview', label: 'Overview', list: [
+      {name: '#js-individual-compiled', label: 'Individual or compiled'},
+      {name: '#js-data-attrs', label: 'Data attributes'}
+    ]},
+    {name: '#transitions', label: 'Transitions'},
+    {name: '#modals', label: 'Modal', list: [
+      {name: '#modals-examples', label: 'Examples'},
+      {name: '#modals-sizes', label: 'Sizes'}
+    ]},
+    {name: 'myname', label: 'myName'}
+  ]
 };
 
 mcTest.target0Closed =
-  m("div", {class:"dropdown"}, [
-    m("button", {type:"button", class:"btn btn-default dropdown-toggle"}, [
-      m("span", ["Dropdown-0 " ]),
-      m("span", {class:"caret"})
+  m("div", {class:"mc-affix", style:"margin-top: 0px;"}, [
+    m("ul", {class:"nav mc-affix-nav"}, [
+      m("li", {class:"active"}, [
+        m("a", {href:"#js-overview"}, ["Overview"]),
+        m("ul", {class:"nav"}, [
+          m("li", [m("a", {href:"#js-individual-compiled"}, ["Individual or compiled"])]),
+          m("li", [m("a", {href:"#js-data-attrs"}, ["Data attributes"])])
+        ])
+      ]),
+      m("li", [m("a", {href:"#transitions"}, ["Transitions"])]),
+      m("li", [
+        m("a", {href:"#modals"}, ["Modal"]),
+        m("ul", {class:"nav"}, [
+          m("li", [m("a", {href:"#modals-examples"}, ["Examples"])]),
+          m("li", [m("a", {href:"#modals-sizes"}, ["Sizes"])])
+        ])
+      ]),
+      m("li", [m("a", {href:""}, ["myName"])])
     ])
   ])
 
@@ -1326,8 +1396,8 @@ mcTest.target0Open =
     ])
   ])
 
-mcTest.dropdown1 = {
-  name: 'dropdown1',
+mcTest.affix1 = {
+  name: 'affix1',
   label: 'Dropdown-1',
   flavor: 'btn',
   isSplit: true,
@@ -1370,595 +1440,143 @@ mcTest.target1Open =
     ])
   ])
 
-test('dropdown 01', function () {
+test('affix 01', function () {
   // test dropdown opens and closes
   var result = true,
     source1;
 
-  var dropdownCtrl = new mc.Dropdown.Controller({ onclickTab: function () {} });
+  var affixCtrl = new mc.Affix.Controller({
+    activeTab: '#js-overview',
+    //sections: 'mySections',
+    onclickTab: function () {}
+  });
 
   // render dropdown
-  source1 = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 01, test 01', source1, mcTest.target0Closed);
-
+  source1 = mc.Affix.view(affixCtrl, mcTest.affix0);
+  result = result && test.compareRenders('affix 01, test 01', source1, mcTest.target0Closed);
+  /*
   // open it
-  dropdownCtrl._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 01, test 02', source1, mcTest.target0Open);
+  affixCtrl._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl, mcTest.affix0);
+  result = result && test.compareRenders('affix 01, test 02', source1, mcTest.target0Open);
 
   // close it
-  dropdownCtrl._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 01, test 03', source1, mcTest.target0Closed);
-
+  affixCtrl._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl, mcTest.affix0);
+  result = result && test.compareRenders('affix 01, test 03', source1, mcTest.target0Closed);
+  */
   return result;
 });
-
-test('dropdown 02', function () {
+/*
+test('affix 02', function () {
   // test dropdown closes when another dropdown is clicked
   var result = true,
     source1, source2;
 
-  var dropdownCtrl1 = new mc.Dropdown.Controller({ onclickTab: function () {} });
-  var dropdownCtrl2 = new mc.Dropdown.Controller({ onclickTab: function () {} });
+  var affixCtrl1 = new mc.Affix.Controller({ onclickTab: function () {} });
+  var affixCtrl2 = new mc.Affix.Controller({ onclickTab: function () {} });
 
   // render closed dropdowns
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 02, test 01a', source1, mcTest.target0Closed);
-  result = result && test.compareRenders('dropdown 02, test 01b', source2, mcTest.target0Closed);
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix0);
+  source2 = mc.Affix.view(affixCtrl2, mcTest.affix0);
+  result = result && test.compareRenders('affix 02, test 01a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('affix 02, test 01b', source2, mcTest.target0Closed);
 
   // open #1
-  dropdownCtrl1._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 02, test 02a', source1, mcTest.target0Open);
-  result = result && test.compareRenders('dropdown 02, test 02b', source2, mcTest.target0Closed);
+  affixCtrl1._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix0);
+  source2 = mc.Affix.view(affixCtrl2, mcTest.affix0);
+  result = result && test.compareRenders('affix 02, test 02a', source1, mcTest.target0Open);
+  result = result && test.compareRenders('affix 02, test 02b', source2, mcTest.target0Closed);
 
   // open #2
-  dropdownCtrl2._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 02, test 03a', source1, mcTest.target0Closed);
-  result = result && test.compareRenders('dropdown 02, test 03b', source2, mcTest.target0Open);
+  affixCtrl2._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix0);
+  source2 = mc.Affix.view(affixCtrl2, mcTest.affix0);
+  result = result && test.compareRenders('affix 02, test 03a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('affix 02, test 03b', source2, mcTest.target0Open);
 
   // open #1 again
-  dropdownCtrl1._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 02, test 04a', source1, mcTest.target0Open);
-  result = result && test.compareRenders('dropdown 02, test 04b', source2, mcTest.target0Closed);
+  affixCtrl1._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix0);
+  source2 = mc.Affix.view(affixCtrl2, mcTest.affix0);
+  result = result && test.compareRenders('affix 02, test 04a', source1, mcTest.target0Open);
+  result = result && test.compareRenders('affix 02, test 04b', source2, mcTest.target0Closed);
 
   // open #2 again
-  dropdownCtrl2._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 02, test 05a', source1, mcTest.target0Closed);
-  result = result && test.compareRenders('dropdown 02, test 05b', source2, mcTest.target0Open);
+  console.log('source1=', affixCtrl1._isDropdownOpen);
+  console.log('source2=', affixCtrl2._isDropdownOpen);
+  affixCtrl2._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix0);
+  source2 = mc.Affix.view(affixCtrl2, mcTest.affix0);
+  result = result && test.compareRenders('affix 02, test 05a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('affix 02, test 05b', source2, mcTest.target0Open);
 
   // close #2
-  dropdownCtrl2._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown0);
-  result = result && test.compareRenders('dropdown 02, test 06a', source1, mcTest.target0Closed);
-  result = result && test.compareRenders('dropdown 02, test 06b', source2, mcTest.target0Closed);
+  affixCtrl2._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix0);
+  source2 = mc.Affix.view(affixCtrl2, mcTest.affix0);
+  result = result && test.compareRenders('affix 02, test 06a', source1, mcTest.target0Closed);
+  result = result && test.compareRenders('affix 02, test 06b', source2, mcTest.target0Closed);
 
   return result;
 });
 
-test('dropdown 03', function () {
+test('affix 03', function () {
   // test split buttons
   var result = true,
     source1;
 
-  var dropdownCtrl1 = new mc.Dropdown.Controller({ onclickTab: function () {} });
+  var affixCtrl1 = new mc.Affix.Controller({ onclickTab: function () {} });
 
   // render closed dropdown
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown1);
-  result = result && test.compareRenders('dropdown 03, test 01', source1, mcTest.target1Closed);
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix1);
+  result = result && test.compareRenders('affix 03, test 01', source1, mcTest.target1Closed);
 
   // open #1
-  dropdownCtrl1._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown1);
-  result = result && test.compareRenders('dropdown 03, test 02', source1, mcTest.target1Open);
+  affixCtrl1._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix1);
+  result = result && test.compareRenders('affix 03, test 02', source1, mcTest.target1Open);
 
   // close #1
-  dropdownCtrl1._onclickDropdown();
-  source1 = mc.Dropdown.view(dropdownCtrl1, mcTest.dropdown1);
-  result = result && test.compareRenders('dropdown 03, test 03', source1, mcTest.target1Closed);
+  affixCtrl1._onclickDropdown();
+  source1 = mc.Affix.view(affixCtrl1, mcTest.affix1);
+  result = result && test.compareRenders('affix 03, test 03', source1, mcTest.target1Closed);
 
   return result;
 });
 
-test('dropdown 04', function () {
+test('affix 04', function () {
   // test item selection
   var result = true,
     tabName1,
     tabName2 = m.prop('');
 
-  var dropdownCtrl1 = new mc.Dropdown.Controller({
+  var affixCtrl1 = new mc.Affix.Controller({
     onclickTab: function (name) { tabName1 = name; }.bind(this)
   });
-  var dropdownCtrl2 = new mc.Dropdown.Controller({
+  var affixCtrl2 = new mc.Affix.Controller({
     tabName: tabName2
   });
 
   // via event, select item
-  dropdownCtrl1._onclickTab('action1');
-  result = result && test.result('dropdown 04, test 01', tabName1 === 'action1');
+  affixCtrl1._onclickTab('action1');
+  result = result && test.result('affix 04, test 01', tabName1 === 'action1');
 
   // via event, select another item
-  dropdownCtrl1._onclickTab('another action');
-  result = result && test.result('dropdown 04, test 02', tabName1 === 'another action');
+  affixCtrl1._onclickTab('another action');
+  result = result && test.result('affix 04, test 02', tabName1 === 'another action');
 
   // via mprop, select item
-  dropdownCtrl2._onclickTab('action1');
+  affixCtrl2._onclickTab('action1');
   console.log(tabName2())
-  result = result && test.result('dropdown 04, test 03', tabName2() === 'action1');
+  result = result && test.result('affix 04, test 03', tabName2() === 'action1');
 
   // via mprop, select another item
-  dropdownCtrl2._onclickTab('another action');
-  result = result && test.result('dropdown 04, test 04', tabName2() === 'another action');
+  affixCtrl2._onclickTab('another action');
+  result = result && test.result('affix 04, test 04', tabName2() === 'another action');
 
   return result;
 });
-/** @jsx m */
-var mcTest = mcTest || {};
-
-// Test NavSearch
-
-mcTest.nav0 = {
-  flavor: 'fixed-top',
-  brandLabel: 'Foo',
-  brandUrl: '/foo',
-  viewComponents: function () {
-    return mc.NavSearch.view(mcTest.navSearch1Ctrl, {
-      flavor: 'nav-right',
-      label: 'Search',
-      placeholder: 'Search',
-      btnLabel: 'Submit'
-    });
-  }
-};
-
-mcTest.target0Closed =
-  m("nav", {class:"navbar navbar-default navbar-fixed-top"}, [
-    m("div", {class:"container-fluid"}, [
-      m("div", {class:"navbar-header"}, [
-        m("button", {type:"button", class:"navbar-toggle"}, [
-          m("span", {class:"sr-only"}, ["Toggle navigation"]),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"})
-        ]),
-        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
-      ]),
-      m("div", {class:"collapse navbar-collapse"}, [
-        m("form", {class:"navbar-form navbar-right"}, [
-          m("div", {class:"form-group"}, [
-            m("label", {class:"sr-only"}, ["Search"]),
-            m("input", {type:"text", class:"form-control", placeholder:"Search", value:"search this"})
-          ]),
-          m("button", {type:"button", class:"btn btn-default"}, ["Submit"])
-        ])
-      ])
-    ])
-  ])
-
-mcTest.target0Closed2 =
-  m("nav", {class:"navbar navbar-default navbar-fixed-top"}, [
-    m("div", {class:"container-fluid"}, [
-      m("div", {class:"navbar-header"}, [
-        m("button", {type:"button", class:"navbar-toggle"}, [
-          m("span", {class:"sr-only"}, ["Toggle navigation"]),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"})
-        ]),
-        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
-      ]),
-      m("div", {class:"collapse navbar-collapse"}, [
-        m("form", {class:"navbar-form navbar-right"}, [
-          m("div", {class:"form-group"}, [
-            m("label", {class:"sr-only"}, ["Search"]),
-            m("input", {type:"text", class:"form-control", placeholder:"Search", value:"typed in"})
-          ]),
-          m("button", {type:"button", class:"btn btn-default"}, ["Submit"])
-        ])
-      ])
-    ])
-  ])
-
-test('navSearch 01', function () {
-  // test navText, also tests basic nav
-  var result = true,
-    searchValue1 = 'search this',
-    searchValue2 = m.prop('search this'),
-    source1;
-
-  mcTest.navSearch1Ctrl = new mc.NavSearch.Controller({
-    searchValue: searchValue1,
-    onsubmit: function (value) {
-      searchValue1 = value;
-    }
-  });
-  var navCtrl1 = new mc.NavResponsive.Controller();
-
-  mcTest.navSearch2Ctrl = new mc.NavSearch.Controller({
-    searchValue: searchValue2
-  });
-  var navCtrl2 = new mc.NavResponsive.Controller();
-
-  // initial render
-  source1 = mc.NavResponsive.view(navCtrl1, mcTest.nav0);
-  result = result && test.compareRenders('navSearch 01, test 01', source1, mcTest.target0Closed);
-
-  // check search value changed
-  mcTest.navSearch1Ctrl._searchValue('typed in');
-  source1 = mc.NavResponsive.view(navCtrl1, mcTest.nav0);
-  result = result && test.compareRenders('navSearch 01, test 02', source1, mcTest.target0Closed2);
-
-  // via event, get search value
-  mcTest.navSearch1Ctrl._onsubmit();
-  result = result && test.result('navSearch 01, test 03', searchValue1 === 'typed in');
-
-  // via mprop, get search value
-  mcTest.navSearch2Ctrl._searchValue('typed in');
-  source1 = mc.NavResponsive.view(navCtrl2, mcTest.nav0);
-  result = result && test.compareRenders('navSearch 01, test 04', source1, mcTest.target0Closed2);
-  mcTest.navSearch2Ctrl._onsubmit();
-  result = result && test.result('navSearch 01, test 05', searchValue2() === 'typed in');
-
-  return result;
-});
-/** @jsx m */
-var mcTest = mcTest || {};
-
-// Test Nav using NavText, its simplest sub-component.
-
-mcTest.nav0 = {
-  flavor: 'fixed-top',
-  brandLabel: 'Foo',
-  brandUrl: '/foo',
-  viewComponents: function () {
-    return mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as'});
-  }
-};
-
-mcTest.target0Closed =
-  m("nav", {class:"navbar navbar-default navbar-fixed-top"}, [
-    m("div", {class:"container-fluid"}, [
-      m("div", {class:"navbar-header"}, [
-        m("button", {type:"button", class:"navbar-toggle"}, [
-          m("span", {class:"sr-only"}, ["Toggle navigation"]),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"})
-        ]),
-        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
-      ]),
-      m("div", {class:"collapse navbar-collapse"}, [
-        m("p", {class:"navbar-text"}, [m("span", ["Signed in as"])])
-      ])
-    ])
-  ])
-
-mcTest.nav1 = {
-  flavor: 'fixed-top',
-  brandLabel: 'Foo',
-  brandUrl: '/foo',
-  viewComponents: function () {
-    return mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'Bar'})
-  }
-};
-
-mcTest.target1Closed =
-  m("nav", {class:"navbar navbar-default navbar-fixed-top"}, [
-    m("div", {class:"container-fluid"}, [
-      m("div", {class:"navbar-header"}, [
-        m("button", {type:"button", class:"navbar-toggle"}, [
-          m("span", {class:"sr-only"}, ["Toggle navigation"]),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"})
-        ]),
-        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
-      ]),
-      m("div", {class:"collapse navbar-collapse"}, [
-        m("p", {class:"navbar-text"}, [
-          m("span", ["Signed in as"]),
-          m("a", {class:"navbar-link"}, [ " Bar"])
-        ])
-      ])
-    ])
-  ])
-
-mcTest.nav2 = {
-  brandLabel: 'Foo',
-  brandUrl: '/foo',
-  viewComponents: function () {
-    return mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'Bar'})
-  }
-};
-
-mcTest.target2Closed =
-  m("nav", {class:"navbar navbar-default"}, [
-    m("div", {class:"container-fluid"}, [
-      m("div", {class:"navbar-header"}, [
-        m("button", {type:"button", class:"navbar-toggle"}, [
-          m("span", {class:"sr-only"}, ["Toggle navigation"]),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"})
-        ]),
-        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
-      ]),
-      m("div", {class:"collapse navbar-collapse"}, [
-        m("p", {class:"navbar-text"}, [
-          m("span", ["Signed in as"]),
-          m("a", {class:"navbar-link"}, [ " Bar"])
-        ])
-      ])
-    ])
-  ])
-
-mcTest.target2Open =
-  m("nav", {class:"navbar navbar-default"}, [
-    m("div", {class:"container-fluid"}, [
-      m("div", {class:"navbar-header"}, [
-        m("button", {type:"button", class:"navbar-toggle"}, [
-          m("span", {class:"sr-only"}, ["Toggle navigation"]),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"}),
-          m("span", {class:"icon-bar"})
-        ]),
-        m("a", {class:"navbar-brand", href:"/foo"}, ["Foo"])
-      ]),
-      m("div", {class:"collapse navbar-collapse in"}, [
-        m("p", {class:"navbar-text"}, [
-          m("span", ["Signed in as"]),
-          m("a", {class:"navbar-link"}, [ " Bar"])
-        ])
-      ])
-    ])
-  ])
-
-test('nav & navTest 01', function () {
-  // test navText, also tests basic nav
-  var result = true,
-    source1;
-
-  var navCtrl = new mc.NavResponsive.Controller();
-
-  // text, no link
-  source1 = mc.NavResponsive.view(navCtrl, mcTest.nav0);
-  result = result && test.compareRenders('nav & navTest 01, test 01', source1, mcTest.target0Closed);
-
-  // text, with link
-  source1 = mc.NavResponsive.view(navCtrl, mcTest.nav1);
-  result = result && test.compareRenders('nav & navTest 01, test 02', source1, mcTest.target1Closed);
-
-  // default nav flavor
-  source1 = mc.NavResponsive.view(navCtrl, mcTest.nav2);
-  result = result && test.compareRenders('nav & navTest 01, test 03', source1, mcTest.target2Closed);
-
-  // open nav
-  navCtrl._onclickNavOpen();
-  source1 = mc.NavResponsive.view(navCtrl, mcTest.nav2);
-  result = result && test.compareRenders('nav & navTest 01, test 04', source1, mcTest.target2Open);
-
-  return result;
-});
-/** @jsx m */
-var mcTest = mcTest || {};
-
-mcTest.tabs0 = {
-  flavor: 'tabs',
-  tabs: [
-    { name: 'financials', label: 'Financials' },
-    { name: 'foo', label: 'Disabled', isDisabled: true },
-    { name: 'personnel', label: 'Personnel' },
-    { name: 'dropdown', label: 'Dropdown', dropdown: [
-      {label: 'Primary actions', type: 'header' },
-      {name: 'action', label: 'Action'},
-      {name: 'another action', label: 'Another action', isDisabled: true },
-      {type: 'divider' },
-      {label: 'Secondary actions', type: 'header' },
-      {name: 'separated action', label: 'Separated action' },
-      {label: 'Exit bar', redirectTo: '/bar'}
-    ]},
-    { name: 'exit', label: 'Exit /foo', redirectTo:  '/foo' },
-    { name: 'exit2', label: 'Exit /bar', redirectTo:  '/bar', isDisabled: true }
-  ]
-};
-
-mcTest.target0Closed =
-  m("ul", {class:"nav nav-tabs"}, [
-    m("li", {class:"active"}, [m("a", ["Financials"])]),
-    m("li", {class:"disabled"}, [m("a", ["Disabled"])]),
-    m("li", [m("a", ["Personnel"])]),
-    m("li", {class:"dropdown"}, [m("a", {class:"dropdown-toggle"}, [m("span", ["Dropdown " ]),m("span", {class:"caret"})])]),
-    m("li", [m("a", {href:"/public/tabs.html?/foo"}, ["Exit /foo"])]),
-    m("li", {class:"disabled"}, [m("a", ["Exit /bar"])])
-  ])
-
-mcTest.target0Open =
-  m("ul", {class:"nav nav-tabs"}, [
-    m("li", {class:"active"}, [m("a", ["Financials"])]),
-    m("li", {class:"disabled"}, [m("a", ["Disabled"])]),
-    m("li", [m("a", ["Personnel"])]),
-    m("li", {class:"dropdown open"}, [m("a", {class:"dropdown-toggle"}, [m("span", ["Dropdown " ]),m("span", {class:"caret"})]),
-      m("ul", {class:"dropdown-menu"}, [
-        m("li", {class:"dropdown-header", tabindex:"-1"}, ["Primary actions"]),
-        m("li", [m("a", ["Action"])]),m("li", {class:"disabled"}, [m("a", ["Another action"])]),
-        m("li", {class:"divider", style:"margin: 6px 0px;"}),
-        m("li", {class:"dropdown-header", tabindex:"-1"}, ["Secondary actions"]),
-        m("li", [m("a", ["Separated action"])]),
-        m("li", [m("a", {href:"/public/tabs.html?/bar"}, ["Exit bar"])])
-      ])
-    ]),
-    m("li", [m("a", {href:"/public/tabs.html?/foo"}, ["Exit /foo"])]),
-    m("li", {class:"disabled"}, [m("a", ["Exit /bar"])])
-  ])
-
-mcTest.dropdown1 = {
-  name: 'dropdown1',
-  label: 'Dropdown-1',
-  flavor: 'btn',
-  isSplit: true,
-  selectors: '.btn-primary',
-  dropdown: [
-    {label: 'Primary actions', type: 'header' },
-    {name: 'action1', label: 'Action'},
-    {name: 'another action', label: 'Another action', isDisabled: true },
-    {type: 'divider' },
-    {label: 'Secondary actions', type: 'header' },
-    {name: 'separated action', label: 'Separated action' },
-    {label: 'Exit bar', redirectTo: '/bar'}
-  ]
-};
-
-mcTest.target1Closed =
-  m("div", {class:"btn-group"}, [
-    m("button", {type:"button", class:"btn btn-primary"}, ["Dropdown-1 " ]),
-    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
-      m("span", {class:"caret"}),
-      m("span", {class:"sr-only"}, ["Toggle dropdown"])
-    ])
-  ])
-
-mcTest.target1Open =
-  m("div", {class:"btn-group open"}, [
-    m("button", {type:"button", class:"btn btn-primary"}, ["Dropdown-1 " ]),
-    m("button", {type:"button", class:"btn dropdown-toggle btn-primary"}, [
-      m("span", {class:"caret"}),
-      m("span", {class:"sr-only"}, ["Toggle dropdown"])
-    ]),
-    m("ul", {class:"dropdown-menu"}, [
-      m("li", {class:"dropdown-header", tabindex:"-1"}, ["Primary actions"]),
-      m("li", [m("a", ["Action"])]),
-      m("li", {class:"disabled"}, [m("a", ["Another action"])]),
-      m("li", {class:"divider", style:"margin: 6px 0px;"}),
-      m("li", {class:"dropdown-header", tabindex:"-1"}, ["Secondary actions"]),
-      m("li", [m("a", ["Separated action"])]),
-      m("li", [m("a", {href:"/public/dropdown.html?/bar"}, ["Exit bar"])])
-    ])
-  ])
-
-test('tabs 01', function () {
-  // test tabs dropdown opens and closes
-  var result = true,
-    source1;
-
-  var tabsCtrl1 = new mc.Tabs.Controller({ activeTab: 'financials', onclickTab: function () {} });
-
-  // render tabs
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  result = result && test.compareRenders('tabs 01, test 01', source1, mcTest.target0Closed);
-
-  // open tab dropdown
-  tabsCtrl1._getDropdownCtrl(0)._onclickDropdown();
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  result = result && test.compareRenders('tabs 01, test 02', source1, mcTest.target0Open);
-
-  // close tag dropdown
-  tabsCtrl1._getDropdownCtrl(0)._onclickDropdown();
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  result = result && test.compareRenders('tabs 01, test 03', source1, mcTest.target0Closed);
-
-  return result;
-});
-
-test('tabs 02', function () {
-  // test tab dropdown closes when another dropdown is clicked
-  var result = true,
-    source1, source2;
-
-  var tabsCtrl1 = new mc.Tabs.Controller({ activeTab: 'financials', onclickTab: function () {} });
-  var dropdownCtrl2 = new mc.Dropdown.Controller({ onclickTab: function () {} });
-
-  // render closed dropdowns
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
-  result = result && test.compareRenders('tabs 02, test 01a', source1, mcTest.target0Closed);
-  result = result && test.compareRenders('tabs 02, test 01b', source2, mcTest.target1Closed);
-
-  // open tab dropdown
-  tabsCtrl1._getDropdownCtrl(0)._onclickDropdown();
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
-  result = result && test.compareRenders('tabs 02, test 02a', source1, mcTest.target0Open);
-  result = result && test.compareRenders('tabs 02, test 02b', source2, mcTest.target1Closed);
-
-  // open dropdown
-  dropdownCtrl2._onclickDropdown();
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
-  result = result && test.compareRenders('tabs 02, test 03a', source1, mcTest.target0Closed);
-  result = result && test.compareRenders('tabs 02, test 03b', source2, mcTest.target1Open);
-
-  // open tab dropdown
-  tabsCtrl1._getDropdownCtrl(0)._onclickDropdown();
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
-  result = result && test.compareRenders('tabs 02, test 04a', source1, mcTest.target0Open);
-  result = result && test.compareRenders('tabs 02, test 04b', source2, mcTest.target1Closed);
-
-  // open dropdown
-  dropdownCtrl2._onclickDropdown();
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
-  result = result && test.compareRenders('tabs 02, test 05a', source1, mcTest.target0Closed);
-  result = result && test.compareRenders('tabs 02, test 05b', source2, mcTest.target1Open);
-
-  // close dropdown
-  dropdownCtrl2._onclickDropdown();
-  source1 = mc.Tabs.view(tabsCtrl1, mcTest.tabs0);
-  source2 = mc.Dropdown.view(dropdownCtrl2, mcTest.dropdown1);
-  result = result && test.compareRenders('tabs 02, test 06a', source1, mcTest.target0Closed);
-  result = result && test.compareRenders('tabs 02, test 06b', source2, mcTest.target1Closed);
-
-  return result;
-});
-
-test('tabs 03', function () {
-  // test tab/item selection
-  var result = true,
-    tabName1,
-    tabName2 = m.prop('financials');;
-
-  var tabsCtrl1 = new mc.Tabs.Controller({
-    activeTab: 'financials',
-    onclickTab: function (name) { tabName1 = name; }.bind(this)
-  });
-  var tabsCtrl2 = new mc.Tabs.Controller({
-    activeTab: tabName2
-  });
-
-  // via event, select tab
-  tabsCtrl1._onclickTab('personnel');
-  result = result && test.result('tabs 03, test 01', tabName1 === 'personnel');
-
-  // via event, select another tab
-  tabsCtrl1._onclickTab('financials');
-  result = result && test.result('tabs 03, test 02', tabName1 === 'financials');
-
-  // via event, select item from dropdown
-  tabsCtrl1._getDropdownCtrl(0)._onclickTab('action');
-  result = result && test.result('tabs 03, test 03', tabName1 === 'action');
-
-  // via mprop, select tab
-  tabsCtrl2._onclickTab('personnel');
-  result = result && test.result('tabs 03, test 04', tabName2() === 'personnel');
-
-  // via mprop, select another tab
-  tabsCtrl2._onclickTab('financials');
-  result = result && test.result('tabs 03, test 05', tabName2() === 'financials');
-
-  // via mprop, select item from dropdown
-  tabsCtrl2._getDropdownCtrl(0)._onclickTab('action');
-  result = result && test.result('tabs 03, test 06', tabName2() === 'action');
-
-  return result;
-});
+*/
 test.print(console.log);

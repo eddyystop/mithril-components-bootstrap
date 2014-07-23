@@ -1,0 +1,110 @@
+/* This is the styling used by Bootstrap 3 documentation pages */
+
+.mc-affix.affix{
+    position:static
+}
+@media (min-width:768px){
+    .mc-affix{
+        padding-left:20px
+    }
+}
+.bs-docs-sidenav{
+    margin-top:20px;
+    margin-bottom:20px
+}
+.mc-affix .nav>li>a{
+    display:block;
+    padding:4px 20px;
+    font-size:13px;
+    font-weight:500;
+    color:#999
+}
+.mc-affix .nav>li>a:hover,
+.mc-affix .nav>li>a:focus{
+    padding-left:19px;
+    color:#563d7c;
+    text-decoration:none;
+    background-color:transparent;
+    border-left:1px solid #563d7c
+}
+.mc-affix .nav>.active>a,
+.mc-affix .nav>.active:hover>a,
+.mc-affix .nav>.active:focus>a{
+    padding-left:18px;
+    font-weight:700;
+    color:#563d7c;
+    background-color:transparent;
+    border-left:2px solid #563d7c
+}
+.mc-affix .nav .nav{
+    display:none;
+    padding-bottom:10px
+}
+.mc-affix .nav .nav>li>a{
+    padding-top:1px;
+    padding-bottom:1px;
+    padding-left:30px;
+    font-size:12px;
+    font-weight:400
+}
+.mc-affix .nav .nav>li>a:hover,
+.mc-affix .nav .nav>li>a:focus{
+    padding-left:29px
+}
+.mc-affix .nav .nav>.active>a,
+.mc-affix .nav .nav>.active:hover>a,
+.mc-affix .nav .nav>.active:focus>a{
+    padding-left:28px;
+    font-weight:500
+}
+.back-to-top,
+.bs-docs-theme-toggle{
+    display:none;
+    padding:4px 10px;
+    margin-top:10px;
+    margin-left:10px;
+    font-size:12px;
+    font-weight:500;
+    color:#999
+}
+.back-to-top:hover,
+.bs-docs-theme-toggle:hover{
+    color:#563d7c;
+    text-decoration:none
+}
+.bs-docs-theme-toggle{
+    margin-top:0
+}
+@media (min-width:768px){
+    .back-to-top,
+    .bs-docs-theme-toggle{
+        display:block
+    }
+}
+@media (min-width:992px){
+    .mc-affix .nav>.active>ul{
+        display:block
+    }
+    .mc-affix.affix,
+    .mc-affix.affix-bottom{
+        width:213px
+    }
+    .mc-affix.affix{
+        position:fixed;
+        top:20px
+    }
+    .mc-affix.affix-bottom{
+        position:absolute
+    }
+    .mc-affix.affix-bottom .mc-affix-nav,
+    .mc-affix.affix .mc-affix-nav{
+        margin-top:0;
+        margin-bottom:0
+    }
+}
+@media (min-width:1200px){
+    .mc-affix.affix-bottom,
+    .mc-affix.affix{
+        width:263px
+    }
+}

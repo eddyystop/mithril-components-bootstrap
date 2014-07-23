@@ -11,7 +11,10 @@ tasks.xml
 # customization
 ########################
 .ignore
+.playpen/
 bower_components/
+tests/build/
+tests/run/
 node_modules/
 .miscDev
 .jshintrc
