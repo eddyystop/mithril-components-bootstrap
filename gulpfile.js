@@ -10,9 +10,6 @@ var through = require('through2');
 var jsxSrc= './componentsJsx/**/*.js';
 var jsxDestBase = './dist/componentsJsx';
 
-var testSrc= './tests/src/**/*.js';
-var testDestBase = './tests/run';
-
 var log = plugins.util.log;
 
 function msxTransform(name) {
@@ -45,6 +42,29 @@ gulp.task('jsx', ['clean'], function() {
     })
     .pipe(gulp.dest(jsxDestBase));
 });
+
+// build distributions =========================================================
+
+gulp.task('uiJsConcat', function () {
+  gulp.src([
+    './components/utils/mcUtils.js',
+    './componentsUi/**/*.js'
+  ])
+    .pipe(plugins.concat('componentsUi.js'))
+    .pipe(gulp.dest('./dist'))
+});
+
+gulp.task('uiCssConcat', function () {
+  gulp.src([
+    './componentsUi/**/*.css'
+  ])
+    .pipe(plugins.concat('componentsUi.css'))
+    .pipe(gulp.dest('./dist'))
+});
+
+gulp.task('ui', ['uiJsConcat', 'uiCssConcat']);
+
+// build tests =================================================================
 
 gulp.task('testConcat', function () {
   gulp.src([

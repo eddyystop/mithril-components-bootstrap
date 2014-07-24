@@ -1,0 +1,263 @@
+/* ===== bs-docs-header, bs-docs-masthead =================================== */
+.bs-docs-masthead,
+.bs-docs-header{
+    position:relative;
+    padding:30px 15px;
+    color:#cdbfe3;
+    text-align:center;
+    text-shadow:0 1px 0 rgba(0,0,0,.1);
+    background-color:#6f5499;
+    background-image:-webkit-gradient(linear,left top,left bottom,from(#563d7c),to(#6f5499));
+    background-image:-webkit-linear-gradient(top,#563d7c 0,#6f5499 100%);
+    background-image:-o-linear-gradient(top,#563d7c 0,#6f5499 100%);
+    background-image:linear-gradient(to bottom,#563d7c 0,#6f5499 100%);
+    filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#563d7c', endColorstr='#6F5499', GradientType=0);
+    background-repeat:repeat-x
+}
+.bs-docs-masthead .bs-docs-booticon{
+    margin:0 auto 30px
+}
+.bs-docs-masthead h1{
+    font-weight:300;
+    line-height:1;
+    color:#fff
+}
+.bs-docs-masthead .lead{
+    margin:0 auto 30px;
+    font-size:20px;
+    color:#fff
+}
+.bs-docs-masthead .version{
+    margin-top:-15px;
+    margin-bottom:30px;
+    color:#9783b9
+}
+.bs-docs-masthead .btn{
+    width:100%;
+    padding:15px 30px;
+    font-size:20px
+}
+@media (min-width:480px){
+    .bs-docs-masthead .btn{width:auto}
+}
+@media (min-width:768px){
+    .bs-docs-masthead{padding:80px 0
+    }
+    .bs-docs-masthead h1{
+        font-size:60px
+    }
+    .bs-docs-masthead .lead{
+        font-size:24px
+    }
+}
+@media (min-width:992px){
+    .bs-docs-masthead .lead{
+        width:80%;
+        font-size:30px
+    }
+}
+.bs-docs-header{
+    margin-bottom:40px;
+    font-size:20px
+}
+.bs-docs-header h1{
+    margin-top:0;
+    color:#fff
+}
+.bs-docs-header p{
+    margin-bottom:0;
+    font-weight:300;
+    line-height:1.4
+}
+.bs-docs-header .container{
+    position:relative
+}
+@media (min-width:768px){
+    .bs-docs-header{
+        padding-top:60px;
+        padding-bottom:60px;
+        font-size:24px;
+        text-align:left
+    }
+    .bs-docs-header h1{
+        font-size:60px;
+        line-height:1
+    }
+}
+@media (min-width:992px){
+    .bs-docs-header h1,
+    .bs-docs-header p{
+        /* margin-right:380px; todo was removed */
+    }
+}
+/* bs-docs-footer =========================================================== */
+.bs-docs-footer{
+    padding-top:40px;
+    padding-bottom:40px;
+    margin-top:100px;
+    color:#777;
+    text-align:center;
+    border-top:1px solid #e5e5e5
+}
+.bs-docs-footer-links{
+    padding-left:0;
+    margin-top:20px;
+    color:#999
+}
+.bs-docs-footer-links li{
+    display:inline;
+    padding:0 2px
+}
+.bs-docs-footer-links li:first-child{
+    padding-left:0}
+@media (min-width:768px){
+    .bs-docs-footer p{
+        margin-bottom:0
+    }
+}
+/* ===== bs-docs-section ==================================================== */
+.bs-docs-section{
+    margin-bottom:60px
+}
+.bs-docs-section:last-child{
+    margin-bottom:0
+}
+/* This is the styling used by Bootstrap 3 documentation pages */
+
+.mc-affix.affix{
+    position:static
+}
+@media (min-width:768px){
+    .mc-affix{
+        padding-left:20px
+    }
+}
+.mc-affix-nav{
+    margin-top:20px;
+    margin-bottom:20px
+}
+.mc-affix .nav>li>a{
+    display:block;
+    padding:4px 20px;
+    font-size:13px;
+    font-weight:500;
+    color:#999
+}
+.mc-affix .nav>li>a:hover,
+.mc-affix .nav>li>a:focus{
+    padding-left:19px;
+    color:#563d7c;
+    text-decoration:none;
+    background-color:transparent;
+    border-left:1px solid #563d7c
+}
+.mc-affix .nav>.active>a,
+.mc-affix .nav>.active:hover>a,
+.mc-affix .nav>.active:focus>a{
+    padding-left:18px;
+    font-weight:700;
+    color:#563d7c;
+    background-color:transparent;
+    border-left:2px solid #563d7c
+}
+.mc-affix .nav .nav{
+    display:none;
+    padding-bottom:10px
+}
+.mc-affix .nav .nav>li>a{
+    padding-top:1px;
+    padding-bottom:1px;
+    padding-left:30px;
+    font-size:12px;
+    font-weight:400
+}
+.mc-affix .nav .nav>li>a:hover,
+.mc-affix .nav .nav>li>a:focus{
+    padding-left:29px
+}
+.mc-affix .nav .nav>.active>a,
+.mc-affix .nav .nav>.active:hover>a,
+.mc-affix .nav .nav>.active:focus>a{
+    padding-left:28px;
+    font-weight:500
+}
+.back-to-top,
+.bs-docs-theme-toggle{
+    display:none;
+    padding:4px 10px;
+    margin-top:10px;
+    margin-left:10px;
+    font-size:12px;
+    font-weight:500;
+    color:#999
+}
+.back-to-top:hover,
+.bs-docs-theme-toggle:hover{
+    color:#563d7c;
+    text-decoration:none
+}
+.bs-docs-theme-toggle{
+    margin-top:0
+}
+@media (min-width:768px){
+    .back-to-top,
+    .bs-docs-theme-toggle{
+        display:block
+    }
+}
+@media (min-width:992px){
+    .mc-affix .nav>.active>ul{
+        display:block
+    }
+    .mc-affix.affix,
+    .mc-affix.affix-bottom{
+        width:213px
+    }
+    .mc-affix.affix{
+        position:fixed;
+        top:20px; /* default when affix is pinned */
+    }
+    .mc-affix.affix-bottom{
+        position:absolute
+    }
+    .mc-affix.affix-bottom .mc-sidenav,
+    .mc-affix.affix .mc-sidenav{
+        margin-top:0;
+        margin-bottom:0
+    }
+}
+@media (min-width:1200px){
+    .mc-affix.affix-bottom,
+    .mc-affix.affix{
+        width:263px
+    }
+}
+/* mc-nav =================================================================== */
+.mc-nav{
+    margin-bottom:0;
+    background-color:#fff;
+    border-bottom:0
+}
+/* .bs-home-nav .bs-nav-b{ display:none } */
+.mc-nav .navbar-brand,
+.mc-nav .navbar-nav>li>a{
+    font-weight:500;
+    color:#563d7c
+}
+.mc-nav .navbar-nav>li>a:hover,
+.mc-nav .navbar-nav>.active>a,
+.mc-nav .navbar-nav>.active>a:hover{
+    color:#463265;
+    background-color:#f9f9f9
+}
+.mc-nav .navbar-toggle .icon-bar{
+    background-color:#563d7c
+}
+.mc-nav .navbar-header .navbar-toggle{
+    border-color:#fff
+}
+.mc-nav .navbar-header .navbar-toggle:hover,
+.mc-nav .navbar-header .navbar-toggle:focus{
+    background-color:#f9f9f9;
+    border-color:#f9f9f9
+}
