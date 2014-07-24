@@ -1,25 +1,22 @@
 <html>
-<header>
-  <link href="../../public/vendor/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css">
-  <link href="../../componentsUi/Affix/Affix.css" rel="stylesheet" type="text/css">
-  <style>
-    @media (min-width:992px){
-      .mc-affix.affix{
-        top:100px !important; /* customize where affix is pinned */
-      }
-    }
-  </style>
-</header>
+<head>
+  <link href="./vendor/bootstrap/css/bootstrap.css" rel="stylesheet" type="text/css">
+  <link href="../componentsUi/Affix/Affix.css" rel="stylesheet" type="text/css">
+</head>
 <body>
-<script src="../../public/vendor/js/mithril.js"></script>
-<script src="../../components/utils/mcUtils.js"></script>
+<script src="./vendor/js/mithril.js"></script>
+<script src="../components/utils/mcUtils.js"></script>
 <script src="../componentsUi/Affix/Affix.js"></script>
-<div class="container">
-  <div class="row" style="height: 100px">
-  </div>
-</div>
+<script src="../componentsUi/Dropdown/Dropdown.js"></script>
+<script src="../componentsUi/Tabs/Tabs.js"></script>
+<script src="../componentsUi/Nav/NavResponsive.js"></script>
+<script src="../componentsUi/Nav/NavSearch.js"></script>
+<script src="../componentsUi/Nav/NavText.js"></script>
+<script src="../componentsUi/Button/ButtonDropdown.js"></script>
+<script src="../componentsUi/Button/Button.js"></script>
+<div id="myNav"></div>
 
-<div class="container">
+<div class="container" style="margin-top:100px">
   <div class="row">
     <div id="mySections" class="col-md-6">
 
@@ -97,6 +94,17 @@
 <script>
   var app = {
     controller: function () {
+      // nav
+      this.tabsCtrl = new mc.Tabs.Controller({ activeTab: this.activeTab = m.prop('finance') });
+      this.navSearchCtrl = new mc.NavSearch.Controller({ searchValue: this.searchValue = m.prop('search this') });
+      this.btnCtrl = new mc.ButtonDropdown.Controller({ tabName: this.btnTabName = m.prop('') });
+      this.buttonCtrl = new mc.Button.Controller({ onclick: function () {
+        console.log('\nbutton clicked');
+      } });
+
+      this.navCtrl = new mc.NavResponsive.Controller();
+
+      // affix
       this.affixCtrl = new mc.Affix.Controller({
         activeTab: this.activeTab = m.prop('#js-overview')
       });
@@ -104,6 +112,29 @@
     },
 
     view: function (ctrl) {
+      // nav
+      var nav = mc.NavResponsive.view(ctrl.navCtrl, {
+        flavor: 'fixed-top',
+        brandLabel: 'Foo',
+        brandUrl: '/afoo',
+        viewComponents: function () {
+          //return mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'Bar'})
+          return [
+            viewTabs(),
+            viewSearch(),
+            mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'JohnSz'}),
+            mc.Button.view(ctrl.buttonCtrl, {
+                flavor: 'nav-right', label: 'Sign in',
+                selectors: '.btn-warning.btn-sm'
+              }
+            )
+          ]
+        }
+      });
+
+      m.render(document.getElementById('myNav'), nav);
+
+      // affix
       var options = {
         list: [
           {name: '#js-overview', label: 'Overview', list: [
@@ -121,6 +152,62 @@
 
       console.log(ctrl.activeTab(), ctrl.affixCtrl._activeTab);
       return mc.Affix.view(ctrl.affixCtrl, options);
+
+      function viewTabs () {
+        var tabOptions = {
+          flavor: 'nav',
+          tabs: [
+            { name: 'financials', label: 'Financials' },
+            { name: 'foo', label: 'Disabled', isDisabled: true },
+            { name: 'personnel', label: 'Personnel' },
+            { name: 'dropdown', label: 'Dropdown', dropdown: [
+              {label: 'Primary actions', type: 'header' },
+              {name: 'action', label: 'Action'},
+              {name: 'another action', label: 'Another action', isDisabled: true },
+              {type: 'divider' },
+              {label: 'Secondary actions', type: 'header' },
+              {name: 'separated action', label: 'Separated action' },
+              {label: 'Exit bar', redirectTo: '/bar'}
+            ]},
+            { name: 'exit', label: 'Exit /foo', redirectTo:  '/foo' },
+            { name: 'exit2', label: 'Exit /bar', redirectTo:  '/bar', isDisabled: true }
+          ]
+        };
+
+        return mc.Tabs.view(ctrl.tabsCtrl, tabOptions)
+      }
+
+      function viewSearch () {
+        var options = {
+          flavor: 'nav-right',
+          label: 'Search',
+          placeholder: 'Search',
+          btnLabel: 'Submit'
+        };
+
+        return mc.NavSearch.view(ctrl.navSearchCtrl, options);
+      }
+
+      function viewBtn () {
+        var dropdownOptions = {
+          flavor: 'btn-up',
+          name: 'dropdown1',
+          label: 'Dropdown-1',
+          selectors: '.btn-success.btn-lg',
+          isSplit: true,
+          dropdown: [
+            {label: 'Primary actions', type: 'header' },
+            {name: 'action', label: 'Action'},
+            {name: 'another action', label: 'Another action', isDisabled: true },
+            {type: 'divider' },
+            {label: 'Secondary actions', type: 'header' },
+            {name: 'separated action', label: 'Separated action' },
+            {label: 'Exit bar', redirectTo: '/bar'}
+          ]
+        };
+
+        return mc.ButtonDropdown.view(ctrl.btnCtrl, dropdownOptions);
+      }
     }
   };
 

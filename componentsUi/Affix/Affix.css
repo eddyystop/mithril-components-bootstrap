@@ -8,7 +8,7 @@
         padding-left:20px
     }
 }
-.bs-docs-sidenav{
+.mc-affix-nav{
     margin-top:20px;
     margin-bottom:20px
 }
@@ -91,13 +91,13 @@
     }
     .mc-affix.affix{
         position:fixed;
-        top:20px
+        top:20px; /* default when affix is pinned */
     }
     .mc-affix.affix-bottom{
         position:absolute
     }
-    .mc-affix.affix-bottom .mc-affix-nav,
-    .mc-affix.affix .mc-affix-nav{
+    .mc-affix.affix-bottom .mc-sidenav,
+    .mc-affix.affix .mc-sidenav{
         margin-top:0;
         margin-bottom:0
     }

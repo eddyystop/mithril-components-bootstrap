@@ -21,7 +21,7 @@ mc.NavResponsive = {
       'static-top-inverse': '.navbar.navbar-default.navbar-static-top.navbar-inverse'
       };
 
-    return m('nav' + (flavors[options.flavor] || flavors.default), [
+    return m('nav.mc-nav' + (flavors[options.flavor] || flavors.default), [
       m('.container-fluid', [
 
         // Brand name & collapsed nav toggle
