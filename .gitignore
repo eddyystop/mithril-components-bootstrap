@@ -15,6 +15,6 @@ tasks.xml
 bower_components/
 tests/build/
 tests/run/
-qqnode_modules/
+node_modules/
 .miscDev
 .jshintrc
