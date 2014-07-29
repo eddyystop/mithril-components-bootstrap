@@ -11,45 +11,52 @@ The component is finished. This doc is temporary.
 See /public/nav.html for usage.
 
 ## Controller
-```
-controller: function () {
-
-  this.tabsCtrl = new mc.Tabs.Controller({ activeTab: this.activeTab = m.prop('finance') });
-  this.navSearchCtrl = new mc.NavSearch.Controller({ searchValue: this.searchValue = m.prop('search this') });
-  this.btnCtrl = new mc.ButtonDropdown.Controller({ tabName: this.btnTabName = m.prop('') });
-  this.buttonCtrl = new mc.Button.Controller({ onclick: function () {
-    console.log('\nbutton clicked');
-  } });
-
-  this.navCtrl = new mc.NavResponsive.Controller();
-},
-```
+    
+    controller: function () {
+      this.tabsCtrl = new mc.Tabs.Controller({ 
+          activeTab: this.activeTab = m.prop('finance') 
+      });
+      this.navSearchCtrl = new mc.NavSearch.Controller({ 
+          searchValue: this.searchValue = m.prop('search this') 
+      });
+      this.btnCtrl = new mc.ButtonDropdown.Controller({ 
+          tabName: this.btnTabName = m.prop('') 
+      });
+      this.buttonCtrl = new mc.Button.Controller({ 
+          onclick: function () { console.log('\nbutton clicked'); } 
+      });
+      this.navCtrl = new mc.NavResponsive.Controller();
+    },
 
 Create controllers for the sub-components the Nav will contain.
 
 
 ## View
-```
-view: function (ctrl) {
-  return [
-    mc.NavResponsive.view(ctrl.navCtrl, {
-      flavor: 'fixed-top',
-      brandLabel: 'Foo',
-      brandUrl: '/afoo',
-      viewComponents: function () {
-        return [
-          viewTabs(),
-          viewSearch(),
-          mc.NavText.view({}, {flavor: 'nav', label: 'Signed in as', href: '#', linkLabel: 'JohnSz'}),
-          mc.Button.view(ctrl.buttonCtrl, {
-              flavor: 'nav-right', label: 'Sign in',
-              selectors: '.btn-warning.btn-sm'
-            }
-          )
-        ]
-      }
-  })];
-```
+
+    view: function (ctrl) {
+      return [
+        mc.NavResponsive.view(ctrl.navCtrl, {
+          flavor: 'fixed-top',
+          brandLabel: 'Foo',
+          brandUrl: '/afoo',
+          viewComponents: function () {
+            return [
+              viewTabs(),
+              viewSearch(),
+              mc.NavText.view({}, {
+                  flavor: 'nav', label: 'Signed in as', 
+                  href: '#', linkLabel: 'JohnSz'
+              }),
+              mc.Button.view(ctrl.buttonCtrl, {
+                  flavor: 'nav-right', label: 'Sign in',
+                  selectors: '.btn-warning.btn-sm'
+                }
+              )
+            ]
+          }
+        })
+    ]};
+    
 
 * `ctrl {obj}` is the controller.
 * `options {obj}` contains the following optional properties:

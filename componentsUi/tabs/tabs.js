@@ -4,12 +4,11 @@
 mc.Tabs = {
   // options: <props> activeTab() <event> onclickTab
   Controller: function (options) {
-    //console.log('\n.. in mc.Tabs.Controller. options=', options);
+    //console.log('\n.. in mc.Tabs.Controller. options=', options, options.activeTab() || options.activeTab);
     options = options || {};
     this._activeTab = mc.utils.getValue(options.activeTab, '');
 
     this._onclickTab = function (name) {
-      //console.log('mc.Tabs.Controller > _onclickTab. name=', name);
       mc._comm.lastDropdownId = -1; // will force closed any open dropdowns
       this._activeTab = name;
       if (typeof options.activeTab === 'function') { options.activeTab(name); }
@@ -44,7 +43,7 @@ mc.Tabs = {
       (options.tabs || []).map(function (tab) {
 
         var tabOptions = mc.utils.extend({}, tab, { flavor: '_tabs', isActive: ctrl._activeTab === tab.name });
-        if (!tab.dropdown) { return mc.Tabs.viewTab(ctrl, tabOptions); }
+        if (!tab.dropdown || tab.isDisabled) { return mc.Tabs.viewTab(ctrl, tabOptions); }
 
         dropdownCounter += 1;
         return mc.Dropdown.view(ctrl._getDropdownCtrl(dropdownCounter), tabOptions);

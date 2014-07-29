@@ -11,16 +11,18 @@ The component is finished. This doc is temporary.
 See /public/tabs.html for usage.
 
 ## Controller
-```
-var tabName = m.prop('');
-var ctrl = new mc.Tabs.Controller({ tabName: tabName });
-```
+
+
+    var tabName = m.prop('');
+    var ctrl = new mc.Tabs.Controller({ tabName: tabName });
+
+
 or
-```
-var ctrl = new mc.Tabs.Controller({ onclickTab: function (name) {
-  var tabName = name;
-}});
-```
+
+    var ctrl = new mc.Tabs.Controller({ onclickTab: function (name) {
+      var tabName = name;
+    }});
+
 
 * `tabName {mprop | ''}` Contains 'name' of the tab or menu item clicked.
 * `onClickTab {fcn}` Callback when a tab or menu item is clicked.

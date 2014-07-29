@@ -13,6 +13,8 @@ Bootstrap HTML via Mithril.
 
 The components here are finalized but this doc is temporary.
 
+Temporary web site: https://eddyystop.github.io/mithril-components-bootstrap
+
 ### Sub-components all the way down 
 
 A Nav bar component is implemented. It may contain (multiple instances of) Tabs, Dropdowns,

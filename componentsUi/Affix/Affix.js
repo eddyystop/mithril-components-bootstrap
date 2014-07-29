@@ -1,12 +1,20 @@
 /*global m:false */
 // Dropdown ====================================================================
 mc.Affix = {
-  // options: <props> activeTab() <event> onclickTab
+  // options: <props> activeTab(), pinnedMarginTop <event> onclickTab
   Controller: function (options) {
     'use strict';
     options = options || {};
     this._activeTab = mc.utils.getValue(options.activeTab, '');
-    this._initialRender = true;  // updated by .view(). what is alternative?
+    this._pinnedMarginTop = mc.utils.getValue(options.pinnedMarginTop, 50); // 50 is height of navbar
+
+    // directly updated by .view(). not idiomatic but clean.
+    this._initialRender = true;
+    this._affixEl = null;
+    this._affixPinnedPast = null;
+    this._affixClass = null;
+
+    this.id = new Date().getTime();
 
     this._onclickTab = function (name, el) {
       if (name.charAt(0) !== '#') {
@@ -18,6 +26,12 @@ mc.Affix = {
       this._activeTab = name;
       if (typeof options.activeTab === 'function') { options.activeTab(name); }
       if (options.onclickTab) { options.onclickTab(name); }
+
+      if (name.charAt(0) === '#') {
+        document.getElementById(name.substr(1)).scrollIntoView(true);
+        var body = document.getElementsByTagName('body')[0];
+        body.scrollTop = body.scrollTop - this._pinnedMarginTop;
+      }
     }.bind(this);
 
     this.setFirstVisibleTab = function (name) {
@@ -25,17 +39,18 @@ mc.Affix = {
     }
   },
 
+  // options: <props> id, list[]
+  // options.list[]: name, label, list[]
   view: function (ctrl, options) {
     'use strict';
     options = options || {};
-    var hrefIds = [],
-      affixPinnedPast, affixEl;
+    var hrefIds = [];
 
-    if (ctrl._initialRender && ctrl._activeTab.charAt(0) === '#') {
+    if (ctrl._initialRender) {
       ctrl._initialRender = false;
 
       setTimeout(function () { // configure affix once the DOM is drawn
-        affixPinnedPast = affixEl.getBoundingClientRect().top;
+        ctrl._affixPinnedPast = ctrl._affixEl.getBoundingClientRect().top - ctrl._pinnedMarginTop;
         configureAffix();
 
         var scrollHandler  = mc.utils.debounce(function () {
@@ -49,11 +64,13 @@ mc.Affix = {
           window.attachEvent('scroll', scrollHandler);
           window.attachEvent('resize', scrollHandler);
         }
-      }, 15);
+      }, 45);
     }
 
-    return m('.mc-affix.affix-top', { // classes are placeholders, set in configureAffix
-        config: function (el) { affixEl = el; }
+    ctrl._affixClass = ctrl._affixClass || 'mc-affix affix-top';
+    return m((options.id ? '#' + options.id : ''), {
+        className: ctrl._affixClass, // classes are updated in configureAffix
+        config: function (el) { ctrl._affixEl = el; }
       },
       m('ul.nav.mc-affix-nav',
         options.list.map(function (item) {
@@ -64,14 +81,10 @@ mc.Affix = {
             item.list.some(function (item) {
               return item.name === ctrl._activeTab;
             });
-          var attrs = {
-            onclick: ctrl._onclickTab.bind(ctrl, item.name),
-            href: item.name.charAt(0) === '#' ? item.name : ''
-          };
           if (item.name.charAt(0) === '#') { hrefIds.push(item.name.substr(1)); }
 
           return m('li' + (isActive ? '.active' : ''), [
-            m('a', attrs, item.label || item.name),
+            m('a', {onclick: ctrl._onclickTab.bind(ctrl, item.name)}, item.label || item.name),
             m('ul.nav',
               item.list.map(function (item) { return viewItem(item); })
             )
@@ -81,25 +94,26 @@ mc.Affix = {
     );
 
     function viewItem (item) {
-      var attrs = {
-        onclick: ctrl._onclickTab.bind(ctrl, item.name),
-        href: item.name.charAt(0) === '#' ? item.name : ''
-      };
       if (item.name.charAt(0) === '#') { hrefIds.push(item.name.substr(1)); }
 
       return m('li' + (item.name === ctrl._activeTab ? '.active' : ''),
-        m('a', attrs, item.label || item.name
+        m('a', {onclick: ctrl._onclickTab.bind(ctrl, item.name)}, item.label || item.name
         )
       );
     }
 
     function configureAffix () {
-      affixEl.setAttribute('class', window.scrollY <= affixPinnedPast ? 'mc-affix affix-top' : 'mc-affix affix');
+      var affixClass = window.scrollY <= ctrl._affixPinnedPast ? 'mc-affix affix-top' : 'mc-affix affix';
+      if (ctrl._affixClass !== affixClass) {
+        ctrl._affixClass = affixClass;
+        ctrl._affixEl.setAttribute('class', affixClass);
+      }
     }
 
     function setFirstVisibleTab () {
       for (var i = 0, len = hrefIds.length; i < len; i += 1) {
-        if (isElInViewport(document.getElementById(hrefIds[i]))) {
+        var hrefIdEl = document.getElementById(hrefIds[i]);
+        if (hrefIdEl && isElInViewport(hrefIdEl)) {
           if ('#' + hrefIds[i] === ctrl._activeTab) {
             return false;
           } else {

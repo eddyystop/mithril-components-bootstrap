@@ -64,6 +64,10 @@ gulp.task('uiCssConcat', function () {
 
 gulp.task('ui', ['uiJsConcat', 'uiCssConcat']);
 
+gulp.task('uiwatch', function() {
+  gulp.watch(['./componentsUi/**/*.js'], ['ui']);
+});
+
 // build tests =================================================================
 
 gulp.task('testConcat', function () {

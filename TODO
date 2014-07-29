@@ -1,0 +1,2 @@
+- Dropdowns: Close when mouse leaves the dropdown. No interlocks will be needed then.
+- Remove stringifyObject from advanced.js and test.js

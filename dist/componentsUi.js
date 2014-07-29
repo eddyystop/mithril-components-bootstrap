@@ -37,12 +37,20 @@ mc.utils.debounce = function (func, wait, immediate) {
 /*global m:false */
 // Dropdown ====================================================================
 mc.Affix = {
-  // options: <props> activeTab() <event> onclickTab
+  // options: <props> activeTab(), pinnedMarginTop <event> onclickTab
   Controller: function (options) {
     'use strict';
     options = options || {};
     this._activeTab = mc.utils.getValue(options.activeTab, '');
-    this._initialRender = true;  // updated by .view(). what is alternative?
+    this._pinnedMarginTop = mc.utils.getValue(options.pinnedMarginTop, 50); // 50 is height of navbar
+
+    // directly updated by .view(). not idiomatic but clean.
+    this._initialRender = true;
+    this._affixEl = null;
+    this._affixPinnedPast = null;
+    this._affixClass = null;
+
+    this.id = new Date().getTime();
 
     this._onclickTab = function (name, el) {
       if (name.charAt(0) !== '#') {
@@ -54,6 +62,12 @@ mc.Affix = {
       this._activeTab = name;
       if (typeof options.activeTab === 'function') { options.activeTab(name); }
       if (options.onclickTab) { options.onclickTab(name); }
+
+      if (name.charAt(0) === '#') {
+        document.getElementById(name.substr(1)).scrollIntoView(true);
+        var body = document.getElementsByTagName('body')[0];
+        body.scrollTop = body.scrollTop - this._pinnedMarginTop;
+      }
     }.bind(this);
 
     this.setFirstVisibleTab = function (name) {
@@ -61,17 +75,18 @@ mc.Affix = {
     }
   },
 
+  // options: <props> id, list[]
+  // options.list[]: name, label, list[]
   view: function (ctrl, options) {
     'use strict';
     options = options || {};
-    var hrefIds = [],
-      affixPinnedPast, affixEl;
+    var hrefIds = [];
 
-    if (ctrl._initialRender && ctrl._activeTab.charAt(0) === '#') {
+    if (ctrl._initialRender) {
       ctrl._initialRender = false;
 
       setTimeout(function () { // configure affix once the DOM is drawn
-        affixPinnedPast = affixEl.getBoundingClientRect().top;
+        ctrl._affixPinnedPast = ctrl._affixEl.getBoundingClientRect().top - ctrl._pinnedMarginTop;
         configureAffix();
 
         var scrollHandler  = mc.utils.debounce(function () {
@@ -85,11 +100,13 @@ mc.Affix = {
           window.attachEvent('scroll', scrollHandler);
           window.attachEvent('resize', scrollHandler);
         }
-      }, 15);
+      }, 45);
     }
 
-    return m('.mc-affix.affix-top', { // classes are placeholders, set in configureAffix
-        config: function (el) { affixEl = el; }
+    ctrl._affixClass = ctrl._affixClass || 'mc-affix affix-top';
+    return m((options.id ? '#' + options.id : ''), {
+        className: ctrl._affixClass, // classes are updated in configureAffix
+        config: function (el) { ctrl._affixEl = el; }
       },
       m('ul.nav.mc-affix-nav',
         options.list.map(function (item) {
@@ -100,14 +117,10 @@ mc.Affix = {
             item.list.some(function (item) {
               return item.name === ctrl._activeTab;
             });
-          var attrs = {
-            onclick: ctrl._onclickTab.bind(ctrl, item.name),
-            href: item.name.charAt(0) === '#' ? item.name : ''
-          };
           if (item.name.charAt(0) === '#') { hrefIds.push(item.name.substr(1)); }
 
           return m('li' + (isActive ? '.active' : ''), [
-            m('a', attrs, item.label || item.name),
+            m('a', {onclick: ctrl._onclickTab.bind(ctrl, item.name)}, item.label || item.name),
             m('ul.nav',
               item.list.map(function (item) { return viewItem(item); })
             )
@@ -117,25 +130,26 @@ mc.Affix = {
     );
 
     function viewItem (item) {
-      var attrs = {
-        onclick: ctrl._onclickTab.bind(ctrl, item.name),
-        href: item.name.charAt(0) === '#' ? item.name : ''
-      };
       if (item.name.charAt(0) === '#') { hrefIds.push(item.name.substr(1)); }
 
       return m('li' + (item.name === ctrl._activeTab ? '.active' : ''),
-        m('a', attrs, item.label || item.name
+        m('a', {onclick: ctrl._onclickTab.bind(ctrl, item.name)}, item.label || item.name
         )
       );
     }
 
     function configureAffix () {
-      affixEl.setAttribute('class', window.scrollY <= affixPinnedPast ? 'mc-affix affix-top' : 'mc-affix affix');
+      var affixClass = window.scrollY <= ctrl._affixPinnedPast ? 'mc-affix affix-top' : 'mc-affix affix';
+      if (ctrl._affixClass !== affixClass) {
+        ctrl._affixClass = affixClass;
+        ctrl._affixEl.setAttribute('class', affixClass);
+      }
     }
 
     function setFirstVisibleTab () {
       for (var i = 0, len = hrefIds.length; i < len; i += 1) {
-        if (isElInViewport(document.getElementById(hrefIds[i]))) {
+        var hrefIdEl = document.getElementById(hrefIds[i]);
+        if (hrefIdEl && isElInViewport(hrefIdEl)) {
           if ('#' + hrefIds[i] === ctrl._activeTab) {
             return false;
           } else {
@@ -341,6 +355,226 @@ mc.Dropdown = {
   }
 };
 /*global m:false */
+// Form ========================================================================
+mc.Form = {
+  Controller: function () { },
+
+  // options: <props> labelCols, controlCols, heightSize, horizontalSize, controls[]
+  view: function (ctrl, options) {
+    return m('form.form-horizontal[role=form]',
+      (options.controls || []).map(function (control) {
+        /*
+        if (control.mprop) { console.log(control.tag, control.mprop()) }
+        if (control.set) {
+          control.set.map(function (set) {
+            if (set.mprop) { console.log(control.tag, set.mprop()) }
+          })
+        }
+        */
+        if (!control) { return null; }
+        return m('.form-group' + (control.horizontalSize || options.horizontalSize || '.form-group-sm'),
+          renderControl(control,
+              control.labelCols || options.labelCols || '.col-sm-2',
+              control.controlCols || options.controlCols || '.col-sm-6',
+              control.heightSize || options.heightSize || '.input-sm')
+        )
+      })
+    );
+
+    // options.tab[]: <props> name, label, isActive, labelCols, controlCols, heightSize
+    function renderControl (control, labelCols, controlCols, heightSize) {
+      switch (control.tag) {
+
+        // options: <props> tag, type, label, mprop, placeholder, value, autofocus, readonly, disabled, cols
+        case 'input':
+          return [
+            m('label.control-label' + labelCols, control.label),
+            m(controlCols,
+              m('input.form-control' +  heightSize,
+                mc.utils.extend(control.readonly ? { readonly: true } : {}, {
+                  type: control.type || 'text',
+                  placeholder: control.placeholder || '',
+                  value: control.mprop() || '',
+                  autofocus: control.autofocus || false,
+                  disabled: control.disabled || false,
+                  onchange: m.withAttr('value', control.mprop)
+                })
+              )
+            )
+          ];
+          break;
+
+        // options: <props> tag, label, set[{ label, mprop, autofocus, disabled }]
+        case 'checkbox':
+          return [
+            m('label.control-label' + labelCols, control.label),
+            m(controlCols,
+              m('.checkbox',
+                (control.set || []).map(function (set) {
+
+                  return m('label.checkbox-inline', [
+                    m('input[type=checkbox]', {
+                      checked: set.mprop(),
+                      autofocus: control.autofocus || false,
+                      disabled: set.disabled || false,
+                      onchange: m.withAttr('checked', set.mprop)
+                    }),
+                    m('span', ' ' + set.label)
+                  ])
+                })
+              )
+            )
+          ];
+          break;
+
+        // options: <props> tag, label, mprop, name, set[{ label, value, autofocus, disabled }]
+        case 'radio':
+          return [
+            m('label.control-label' + labelCols, control.label),
+            m(controlCols,
+              m('.radio',
+                (control.set || []).map(function (set) {
+
+                  return m('label.radio-inline', [
+                    m('input[type=radio]', {
+                      name: control.name || 'radio-set',
+                      value: set.value,
+                      checked: control.mprop() === set.value,
+                      autofocus: set.autofocus || false,
+                      disabled: set.disabled || false,
+                      onchange: function (mprop, e) { mprop(set.value); }.bind({}, control.mprop)
+                    }),
+                    m('span', ' ' + set.label || set.value)
+                  ])
+                })
+              )
+            )
+          ];
+          break;
+
+        // options: <props> tag, label, mprop, name, cols, set[{ label, value, autofocus, disabled }]
+        case 'textarea':
+          return [
+            m('label.control-label' + labelCols, control.label),
+            m(controlCols,
+              m('textarea.form-control' +  heightSize, {
+                rows: control.rows || 1,
+                autofocus: control.autofocus || false,
+                disabled: control.disabled || false
+              }, control.text || '')
+            )
+          ];
+          break;
+
+        // options: <props> tag, label, mprop, autofocus, cols, options[{ label, value, selected, disabled }]
+        case 'select': // not multiple
+          return [
+            m('label.control-label' + labelCols, control.label),
+            m(controlCols,
+              m('select.form-control' +  heightSize, {
+                  autofocus: control.autofocus || false,
+                  onchange: function(mprop, e) { mprop(e.target.options[e.target.selectedIndex].value); }.bind({}, control.mprop)
+                },
+                (control.options || []).map(function (option) {
+
+                  return m('option', {
+                    value: option.value,
+                    selected: control.mprop() === option.value,
+                    disabled: option.disabled || false
+                  }, option.label || option.value)
+                })
+              )
+            )
+          ];
+          break;
+
+        // options: <props> tag, label, text }]
+        case 'static':
+          return [
+            m('label.control-label' + labelCols, control.label),
+            m(controlCols,
+              m('p.form-control-static' + heightSize, control.text)
+            )
+          ];
+          break;
+
+        // options: <props> tag, size, text, small }]
+        case 'heading':
+          return [
+            m((control.size || 'h1') + labelCols, [
+              control.text,
+              control.small ? m('small', ' ' + control.small) : ''
+            ])
+          ];
+          break;
+      }
+    }
+  }
+};
+/*global m:false */
+// McbDisplay ===============================================================
+mc.McbDisplay = {
+  log: '',
+
+  Controller: function (options) {
+    this.activeTab = options.activeTab;
+    this.html = options.html;
+    this.tabsCtrl = new mc.Tabs.Controller({ activeTab: this.activeTab });
+
+    this.setHtml = function (html) {
+      this.html(html);
+    }.bind(this);
+  },
+
+  view: function (ctrl, options) {
+    var optionsTab = {
+      flavor: 'tabs',
+      tabs: [
+        { name: 'features', label: 'Features'},
+        { name: 'result', label: 'Live result' },
+        { name: 'code', label: 'Controller & view' },
+        { name: 'html', label: 'HTML'},
+        { name: 'doc', label: 'Docs' }
+      ]
+    };
+
+    return m('.bs-docs-section.mc-mcb-display', [
+      m('.row.mc-mcb-display-header',
+        m('h3', options.heading)
+      ),
+      m('.row', [
+        m('.col-md-8', [
+            m('.row.mc-mcb-display-controls', options.controls),
+            m('.row.mc-mcb-display-tabs', [
+              m('.mc-mcb-display-tab',
+                mc.Tabs.view(ctrl.tabsCtrl, optionsTab)
+              ),
+              m('.row.mc-mcb-display-results' + (options.scrollResult ? '.scroll' : ''), displayTab())
+            ])
+          ]
+        ),
+        m('.col-md-4', [
+          m('.row.mc-mcb-display-console', [
+            m('h4', 'Console:'),
+            options.console
+          ]),
+          m('.row.mc-mcb-display-options',
+            options.options
+          )
+        ])
+      ])
+    ]);
+
+    function displayTab () {
+      if (options.returnHtml) {
+        return m('', {config: function (el) { ctrl.setHtml(el.innerHTML); }}, options.tab || '');
+      } else {
+        return options.tab;
+      }
+    }
+  }
+};
+/*global m:false */
 // NavResponsive ===============================================================
 mc.NavResponsive = {
   Controller: function () {
@@ -451,12 +685,11 @@ mc.NavText = {
 mc.Tabs = {
   // options: <props> activeTab() <event> onclickTab
   Controller: function (options) {
-    //console.log('\n.. in mc.Tabs.Controller. options=', options);
+    //console.log('\n.. in mc.Tabs.Controller. options=', options, options.activeTab() || options.activeTab);
     options = options || {};
     this._activeTab = mc.utils.getValue(options.activeTab, '');
 
     this._onclickTab = function (name) {
-      //console.log('mc.Tabs.Controller > _onclickTab. name=', name);
       mc._comm.lastDropdownId = -1; // will force closed any open dropdowns
       this._activeTab = name;
       if (typeof options.activeTab === 'function') { options.activeTab(name); }
@@ -491,7 +724,7 @@ mc.Tabs = {
       (options.tabs || []).map(function (tab) {
 
         var tabOptions = mc.utils.extend({}, tab, { flavor: '_tabs', isActive: ctrl._activeTab === tab.name });
-        if (!tab.dropdown) { return mc.Tabs.viewTab(ctrl, tabOptions); }
+        if (!tab.dropdown || tab.isDisabled) { return mc.Tabs.viewTab(ctrl, tabOptions); }
 
         dropdownCounter += 1;
         return mc.Dropdown.view(ctrl._getDropdownCtrl(dropdownCounter), tabOptions);
