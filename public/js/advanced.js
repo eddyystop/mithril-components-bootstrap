@@ -3,8 +3,8 @@ basket.clear();
 
 var data = {
   components: {
-    Tabs: {key: 'Tabs', doc: 'Tabs/readme.md', heading: 'Tabs', scrollResult: true},
-    NavResponsive: {key: 'NavResponsive', doc: 'Nav/readme.md', heading: 'NavResponsive', scrollResult: true},
+    Tabs: {key: 'Tabs', doc: 'tabs/readme.md', heading: 'Tabs', scrollResult: true},
+    NavResponsive: {key: 'NavResponsive', doc: 'nav/readme.md', heading: 'NavResponsive', scrollResult: true},
     Affix: {key: 'Affix', doc: 'Affix/readme.md', heading: 'Affix', scrollResult: false}
   },
   currComponent: m.prop('Tabs'),
@@ -468,13 +468,13 @@ var componentPart = {
         ;
         break;
       case 'features':
-        var str = getFile (options.ex, '../componentsUi/' + options.doc.toLowerCase()); // github requires lowercase
+        var str = getFile (options.ex, '../componentsUi/' + options.doc);
         var i = str.indexOf('## Controller');
         if (i !== -1) { str = str.substr(0, i - 1); }
         mcbDisplayOptions.tab = m.trust((new Markdown.Converter()).makeHtml(str));
         break;
       case 'doc':
-        str = getFile (options.ex, '../componentsUi/' + options.doc.toLowerCase());
+        str = getFile (options.ex, '../componentsUi/' + options.doc);
         i = str.indexOf('## Controller');
         if (i !== -1) { str = str.substr(i); }
         mcbDisplayOptions.tab = m.trust((new Markdown.Converter()).makeHtml(str));
