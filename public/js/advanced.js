@@ -468,16 +468,13 @@ var componentPart = {
         ;
         break;
       case 'features':
-        var str = getFile (options.ex, '../componentsUi/tabs/readme.md');
-        console.log('..............getFile', typeof str);
-        //var str = getFile (options.ex, '../componentsUi/' + options.doc);
+        var str = getFile (options.ex, '../componentsUi/' + options.doc.toLowerCase()); // github requires lowercase
         var i = str.indexOf('## Controller');
         if (i !== -1) { str = str.substr(0, i - 1); }
         mcbDisplayOptions.tab = m.trust((new Markdown.Converter()).makeHtml(str));
         break;
       case 'doc':
-        str = getFile (options.ex, 'https://raw.githubusercontent.com/eddyystop/mithril-components-bootstrap/master/componentsUi/tabs/readme.md'  + options.doc);
-        //str = getFile (options.ex, '../componentsUi/' + options.doc);
+        str = getFile (options.ex, '../componentsUi/' + options.doc.toLowerCase());
         i = str.indexOf('## Controller');
         if (i !== -1) { str = str.substr(i); }
         mcbDisplayOptions.tab = m.trust((new Markdown.Converter()).makeHtml(str));
