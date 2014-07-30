@@ -468,8 +468,8 @@ var componentPart = {
         ;
         break;
       case 'features':
-        var str = getFile (options.ex, '../dist/componentsUi.js'  + options.doc);
-        console.log('..............getFile', typeof str1);
+        var str = getFile (options.ex, '../dist/componentsUi.js/'  + options.doc);
+        console.log('..............getFile', typeof str);
         //var str = getFile (options.ex, '../componentsUi/' + options.doc);
         var i = str.indexOf('## Controller');
         if (i !== -1) { str = str.substr(0, i - 1); }
