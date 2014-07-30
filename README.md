@@ -3,6 +3,8 @@
 Components targeted toward Bootstrap's CSS. 
 Neither jQuery nor bootstrap.js are required.
 
+Web site (in progress): https://eddyystop.github.io/mithril-components-bootstrap
+
 There seem to be 2 design approaches to writing Bootstrap components.
 One focuses on writing Bootstrap HTML by hand (as it has always been done) 
 and then wrapping Mithril around that HTML.
@@ -12,8 +14,6 @@ implement common Bootstrap structures. The components themselves produce the
 Bootstrap HTML via Mithril.
 
 The components here are finalized but this doc is temporary.
-
-Temporary web site: https://eddyystop.github.io/mithril-components-bootstrap
 
 ### Sub-components all the way down 
 
