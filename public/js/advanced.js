@@ -468,7 +468,7 @@ var componentPart = {
         ;
         break;
       case 'features':
-        var str = getFile (options.ex, '../componentsUi/tabs/tabs.js');
+        var str = getFile (options.ex, '../componentsUi/tabs/readme.md');
         console.log('..............getFile', typeof str);
         //var str = getFile (options.ex, '../componentsUi/' + options.doc);
         var i = str.indexOf('## Controller');
